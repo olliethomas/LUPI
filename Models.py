@@ -54,6 +54,9 @@ class SVM():
         clf.w = w
         clf.b = bias[0]
         clf.alphas = alphas
+        clf.xs = x
+        clf.ys = y
+        clf.kern = prob.xkernel
         clf.support_vectors = x[bacond1.flatten()]
         return clf
 
@@ -109,7 +112,7 @@ class SVMp():
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
         alphasAndDeltas = np.array(sol['x'])
-        self.alphas = alphasAndDeltas[:self.L]
+        self.alphas = np.asarray(alphasAndDeltas[:self.L])
         self.deltas = alphasAndDeltas[self.L:]
 
         self.w = np.sum(self.alphas * self.y[:, None] * self.x, axis = 0)
@@ -124,6 +127,9 @@ class SVMp():
         clf.w = self.w
         clf.b = self.getB()
         clf.alphas = self.alphas
+        clf.xs = self.x
+        clf.ys = self.y
+        clf.kern = self.prob.xkernel
         clf.support_vectors = self.x[(self.alphas > 1e-5).flatten()]
         clf1 = classifier()
         clf1.w = self.wStar
@@ -184,7 +190,7 @@ class SVMdp_simp():
 
         xi_star_amended = np.zeros(prob.num)
         for i in range(prob.num):
-            output = (1- prob.Y[i]*(np.dot(xStar_clf.w,prob.Xstar[i])+xStar_clf.b))
+            output = (1- prob.Y[i]*(xStar_clf.f(prob.Xstar[i])))
             xi_star_amended[i] = max(0, output)
 
         Ky = prob.yi_yj
@@ -235,6 +241,9 @@ class SVMdp_simp():
         clf.w = w
         clf.b = bias
         clf.alphas = alphas
+        clf.xs = x
+        clf.ys = y
+        clf.kern = prob.xkernel
         clf.support_vectors = prob.X[bacond1.flatten()]
         return clf
 
@@ -304,7 +313,7 @@ class SVMdp():
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
         alphasAndDeltas = np.array(sol['x'])
-        self.alphas = alphasAndDeltas[:L]
+        self.alphas = np.asarray(alphasAndDeltas[:L])
         self.deltas = alphasAndDeltas[L:]
 
         self.w = np.sum(self.alphas * self.y[:, None] * self.x, axis = 0)
@@ -320,6 +329,9 @@ class SVMdp():
         self.b = self.getB()
         clf.b = self.b
         clf.alphas = self.alphas
+        clf.xs = x
+        clf.ys = y
+        clf.kern = prob.xkernel
         clf.support_vectors = self.x[bacond.flatten()]
 
         priv_clf = classifier()
@@ -527,7 +539,10 @@ class SVMu():
         clf.w = self.w
         self.b = self.getB()
         clf.b = self.b
-        clf.alphas = self.alphas
+        clf.alphas = np.asarray(self.alphas+self.etas)
+        clf.xs = x
+        clf.ys = y
+        clf.kern = prob.xkernel
         clf.support_vectors = self.x[bacond.flatten()]
         #clf.scaler = prob.scaler
 
