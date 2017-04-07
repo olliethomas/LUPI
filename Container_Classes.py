@@ -140,6 +140,12 @@ class classifier():
         self.w = 0
         self.b = 0
         self.alphas = []
+
+        self.kern = None
+        self.ys = None
+        self.xs = None
+        self.sigma = -99
+
         self.support_vectors = []
         #self.scaler = object()
 
@@ -149,10 +155,42 @@ class classifier():
         #else:
         #    x = np.array(x).reshape(1,-1)
         #xprime = self.scaler.transform(x).ravel()
-        return np.sign(np.dot(self.w,x)+self.b)
 
-    def f_star(self, x, y): # This won't make sense now, but we come back to it later
-        return y*(np.dot(self.w,x)+self.b)
+        #result = self.b
+        #for z_i, x_i, y_i in zip(self.alphas,
+        #                         self.xs,
+        #                         self.ys):
+        #    result += z_i * y_i * self.kern(x_i, x)
+        #print("Tulloch: ", result)
+        #print("naive:", np.dot(self.w,x)+self.b)
+        #GMx = self.gram_matrix(x, self.xs, self.kern)
+        #print("me: ", np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b)
+        #return np.sign(np.dot(self.w,x)+self.b)
+        GMx = self.gram_matrix(x, self.xs, self.kern)
+        return np.sign(np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b)
+
+
+    def gram_matrix(self, X1, X2, kern):
+        if isinstance(kern, Gaussian):
+            if self.sigma == -99:
+                SQD = np.zeros((len(X2), len(X2)))
+                for i in range(len(X2)):
+                    for j in range(len(X2)):
+                        SQD[i,j] = np.linalg.norm(X2[i]-X2[j])
+                self.sigma = np.median(SQD)
+            K = np.zeros(len(X2))
+            for i in range(len(X2)):
+                K[i] = kern(X1, X2[i], sigma=self.sigma)
+            return K
+        else:
+            K = np.zeros(len(X2))
+            for i in range(len(X2)):
+                K[i] = kern(X1, X2[i])
+            return K
+
+    def f(self, x): # This won't make sense now, but we come back to it later
+        GMx = self.gram_matrix(x, self.xs, self.kern)
+        return np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b
 
 class svm_u_problem():
     def __init__(self, X, Xstar, XstarStar, Y, C=1.0, gamma=1.0, sigma=1, delta=1.0, xkernel=Linear(), xSkernel=Linear(), xSSkernel=Linear()):

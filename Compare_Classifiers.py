@@ -396,7 +396,7 @@ def grid_search_SVM(C, dataset):
         inner_probs = np.array(inner_probs)
 
         svm_prob = [(data[3], data[4], data[2], data[1], data[0], c, xk, data[5], data[6]) for data in inner_probs for c in C for xk in xkerns]
-        print(len(svm_prob))
+        print(len(svm_prob), dataset, i)
         del inner_probs
 
         noCores = 4
@@ -426,11 +426,11 @@ def grid_search_SVM(C, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[3] for x in results_f]))
 
-    with open('SVM_results_all_'+str(dataset), 'wb') as fp:
+    with open('SVM_results_all_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVM_results_acc_'+str(dataset), 'wb') as fp:
+    with open('SVM_results_acc_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVM_results_f_'+str(dataset), 'wb') as fp:
+    with open('SVM_results_f_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMp(C, Gamma, dataset):
@@ -486,7 +486,7 @@ def grid_search_SVMp(C, Gamma, dataset):
         inner_probs = np.array(inner_probs)
 
         svmp_prob = [(data[3], data[4], data[2], data[1], data[0], c, g, xk, xsk, data[5], data[6]) for data in inner_probs for c in C for g in Gamma for xk in xkerns for xsk in xskerns]
-        print(len(svmp_prob))
+        print(len(svmp_prob), dataset, i)
         del inner_probs
 
         noCores = 4
@@ -519,11 +519,11 @@ def grid_search_SVMp(C, Gamma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[5] for x in results_f]))
 
-    with open('SVMp_results_all_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_all_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMp_results_acc_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_acc_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMp_results_f_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_f_'+str(dataset)+"_reduced_K", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
@@ -579,7 +579,7 @@ def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
         inner_probs = np.array(inner_probs)
 
         svmdps_prob = [(data[3], data[4], data[2], data[1], data[0], c, d, xk, xsk, data[5], data[6], 0) for data in inner_probs for c in C for d in Delta for xk in xkerns for xsk in xskerns]
-        print(len(svmdps_prob))
+        print(len(svmdps_prob), dataset, i)
         del inner_probs
 
         noCores = 4
@@ -609,11 +609,11 @@ def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
     print(results_f)
     print("F-Score: ", np.mean([x[5] for x in results_f]))
 
-    with open('SVMmt_results_all_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_all_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMmt_results_acc_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_acc_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMmt_results_f_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_f_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMdp(C, Delta, Gamma, dataset):
@@ -669,7 +669,7 @@ def grid_search_SVMdp(C, Delta, Gamma, dataset):
         inner_probs = np.array(inner_probs)
 
         svmdp_prob = [(data[3], data[4], data[2], data[1], data[0], c, d, g, xk, xsk, data[5], data[6], 0) for data in inner_probs for c in C for d in Delta for g in Gamma for xk in xkerns for xsk in xskerns]
-        print(len(svmdp_prob))
+        print(len(svmdp_prob), dataset, i)
         del inner_probs
 
         noCores = 4
@@ -700,11 +700,11 @@ def grid_search_SVMdp(C, Delta, Gamma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[6] for x in results_f]))
 
-    with open('SVMdp_results_all_'+str(dataset), 'wb') as fp:
+    with open('SVMdp_results_all_'+str(dataset)+"_fixed_delta_reduced", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMdp_results_acc_'+str(dataset), 'wb') as fp:
+    with open('SVMdp_results_acc_'+str(dataset)+"_fixed_delta_reduced", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMdp_results_f_'+str(dataset), 'wb') as fp:
+    with open('SVMdp_results_f_'+str(dataset)+"_fixed_delta_reduced", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
@@ -716,6 +716,7 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
 
     results_acc = []
     results_f = []
+    results_to_save = []
 
     for i in range(10):
         prob_data = []
@@ -760,7 +761,7 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
         inner_probs = np.array(inner_probs)
 
         svmu_prob = [(data[3], data[4], data[2], data[1], data[0], c, d, g, S, xk, xsk, xssk, data[5], data[6]) for data in inner_probs for c in C for d in Delta for g in Gamma for S in Sigma for xk in xkerns for xsk in xskerns for xssk in xsskerns if S >= 1/g]
-        print(len(svmu_prob))
+        print(len(svmu_prob), dataset, i)
         del inner_probs
 
         noCores = 4
@@ -777,6 +778,7 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
 
         kerns = ["Gaussian", "Linear", "Quadratic"]
         inner_svm_results = [(c, g, s, d, xker, xsker, xssker, np.mean([x[3] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker]), np.mean([x[4] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker])) for c in C for d in Delta for g in Gamma for s in Sigma for xker in kerns for xsker in kerns for xssker in kerns if s >= 1/g]
+        results_to_save.append(inner_svm_results)
         print(inner_svm_results)
         best_acc = max(inner_svm_results, key=itemgetter(7, 8))
         best_f = max(inner_svm_results, key=itemgetter(8, 7))
@@ -789,8 +791,12 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[8] for x in results_f]))
 
-    #with open('SVMuoutfileRTEST', 'wb') as fp:
-    #    pickle.dump(results, fp)
+    with open('SVMu_results_all_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+        pickle.dump(results_to_save, fp)
+    with open('SVMu_results_acc_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+        pickle.dump(results_acc, fp)
+    with open('SVMu_results_f_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+        pickle.dump(results_f, fp)
 
 def svmThread(p):
     prob = svm_problem_tuple(p)
@@ -854,27 +860,49 @@ def svmuThread(p):
 
 
 def main():
-    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 137)
+    #grid_search_SVM([1], 137)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 137)
+    #grid_search_SVMp([1], [1], 137)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 137)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 174)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 197)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 219)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 254)
-    #grid_search_SVMdp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 137)
-    #grid_search_SVMdp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
-    #grid_search_SVMdp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
-    #grid_search_SVMdp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
-    #grid_search_SVMdp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    #grid_search_SVMu([0.1, 1, 10], [10], [0.1, 1, 10], [0.1, 1, 10], 137)
+    #grid_search_SVMmt([1], [10], 137)
+    #grid_search_SVMmt([0.1, 1, 10], [10], 174)
+    #grid_search_SVMmt([0.1, 1, 10], [10], 197)
+    #grid_search_SVMmt([0.1, 1, 10], [10], 219)
+    #grid_search_SVMmt([0.1, 1, 10], [10], 254)
+    #grid_search_SVMdp([1], [10], [1], 137)
+    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 174)
+    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 197)
+    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 219)
+    #grid_search_SVMdp([1], [1000], [1], 254)
+    grid_search_SVMu([1], [10], [1], [1], 137)
+
+    print("----- Reduced Search, Kernel at Predition Accuracy -----")
+    with open ('SVM_results_acc_137_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    with open ('SVMp_results_acc_137_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_137_fixed_delta_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    print("----- Reduced Search Accuracy -----")
+    with open ('SVM_results_acc_137_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
 
     print("----- Accuracy -----")
     with open ('SVM_results_acc_137', 'rb') as fp:
@@ -1013,6 +1041,8 @@ def main():
     with open ('SVMu_results_f_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+
+
 
     #with open ('SVMp_results_f_137', 'rb') as fp:
     #    itemlistsvm = pickle.load(fp)
