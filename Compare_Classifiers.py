@@ -860,29 +860,29 @@ def svmuThread(p):
 
 
 def main():
-    grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 137)
-    grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
-    grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
-    grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
-    grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
+    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 137) # done
+    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
+    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
+    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
+    #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
     #grid_search_SVMp([1], [1], 137)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
     #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 137)
-    grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 174)
-    grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 197)
-    grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 219)
-    grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 254)
-    #grid_search_SVMdp([1], [10], [1], 137)
+    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 137) # done
+    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 174)
+    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 197)
+    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 219)
+    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 254)
+    grid_search_SVMdp([1], [10], [1], 137)
     #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 174)
     #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 197)
     #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 219)
     #grid_search_SVMdp([1], [1000], [1], 254)
     #grid_search_SVMu([1], [10], [1], [1], 137)
-    '''
-    print("----- Reduced Search, Kernel at Predition Accuracy -----")
+
+    print("----- Reduced Search Accuracy -----")
     with open ('SVM_results_acc_137_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
@@ -892,88 +892,322 @@ def main():
     with open ('SVMmt_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMdp_results_acc_137_fixed_delta_reduced', 'rb') as fp:
+    with open ('SVMdp_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
     with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
 
-    print("----- Reduced Search Accuracy -----")
-    with open ('SVM_results_acc_137_reduced', 'rb') as fp:
+    with open ('SVM_results_acc_174_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    print("174 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    with open ('SVMp_results_acc_174_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_197_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    with open ('SVMp_results_acc_197_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_219_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    with open ('SVMp_results_acc_219_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_254_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    with open ('SVMp_results_acc_254_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+
+    print("----- Reduced Search F-Score -----")
+    with open ('SVM_results_f_137_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_137_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_137_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_137_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMu_results_f_137_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_174_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_174_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    #with open ('SVMu_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_197_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_197_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    #with open ('SVMu_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_219_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_219_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    #with open ('SVMu_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_254_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_254_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    #with open ('SVMu_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
 
     print("----- Accuracy -----")
     with open ('SVM_results_acc_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    with open ('SVM_results_acc_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    with open ('SVM_results_acc_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    with open ('SVM_results_acc_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    with open ('SVM_results_acc_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-
-    with open ('SVMp_results_acc_137', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMp_results_acc_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMp_results_acc_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMp_results_acc_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMp_results_acc_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-
+    #with open ('SVMp_results_acc_137_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
     with open ('SVMmt_results_acc_137_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_174', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_174_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
     with open ('SVMmt_results_acc_174_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("174 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_197', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_197_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
     with open ('SVMmt_results_acc_197_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("197 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_219', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_219_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
     with open ('SVMmt_results_acc_219_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("219 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_acc_254', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_254_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
     with open ('SVMmt_results_acc_254_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-
-    with open ('SVMdp_results_acc_137', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMdp_results_acc_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMdp_results_acc_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMdp_results_acc_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMdp_results_acc_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-
-    with open ('SVMu_results_acc_137', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
 
     print("----- F-Score -----")
+    with open ('SVM_results_f_137', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_137', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_137_fixed_delta', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_174', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_174_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_174_fixed_delta', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_197', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_197_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_197_fixed_delta', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_219', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_219_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_219_fixed_delta', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_254', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    #with open ('SVMp_results_acc_254_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_254_fixed_delta', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+    #    itemlistsvm = pickle.load(fp)
+    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+
+    '''
     with open ('SVM_results_f_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
@@ -989,6 +1223,7 @@ def main():
     with open ('SVM_results_f_254', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+
 
     with open ('SVMp_results_f_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -1006,6 +1241,7 @@ def main():
         itemlistsvm = pickle.load(fp)
     print("254 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
+
     with open ('SVMmt_results_f_137_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
@@ -1021,6 +1257,7 @@ def main():
     with open ('SVMmt_results_f_254_fixed_delta', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
+
 
     with open ('SVMdp_results_f_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -1041,7 +1278,7 @@ def main():
     with open ('SVMu_results_f_137', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
-    '''
+
 
 
     #with open ('SVMp_results_f_137', 'rb') as fp:
@@ -1050,7 +1287,7 @@ def main():
     #with open ('SVMp_results_acc', 'rb') as fp:
     #    itemlistsvmp = pickle.load(fp)
     #print(np.mean([item[4] for item in itemlistsvmp]))
-
+    '''
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)

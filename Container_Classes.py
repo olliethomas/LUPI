@@ -9,6 +9,7 @@ class svm_problem():
         self.delta = delta
         self.xkernel = xk
         self.xSkernel = xSk
+        self.sigma = -99
 
         if(isinstance(X, np.ndarray)):
             self.X = X
@@ -37,16 +38,16 @@ class svm_problem():
 
     def gram_matrix(self, X1, X2, kern):
         if isinstance(kern, Gaussian):
-            #print(kern.getName())
-            SQD = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-            sigma = np.median(SQD)
+            if self.sigma == -99:
+                SQD = np.zeros((len(X1), len(X1)))
+                for i in range(len(X1)):
+                    for j in range(len(X1)):
+                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
+                self.sigma = np.median(SQD)
             K = np.zeros((len(X1), len(X1)))
             for i in range(len(X1)):
                 for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=sigma)
+                    K[i,j] = kern(X1[i], X2[j], sigma=self.sigma)
             return K
         else:
             K = np.zeros((len(X1), len(X1)))
@@ -58,6 +59,7 @@ class svm_problem():
 class svm_problem_tuple():
     def __init__(self, prob_tuple):
         self.C = prob_tuple[5]
+        self.sigma = -99
         if len(prob_tuple) == 9: # SVM
             self.gamma = 1
             self.delta = 1
@@ -105,15 +107,16 @@ class svm_problem_tuple():
 
     def gram_matrix(self, X1, X2, kern):
         if isinstance(kern, Gaussian):
-            SQD = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-            sigma = np.median(SQD)
+            if self.sigma == -99:
+                SQD = np.zeros((len(X1), len(X1)))
+                for i in range(len(X1)):
+                    for j in range(len(X1)):
+                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
+                self.sigma = np.median(SQD)
             K = np.zeros((len(X1), len(X1)))
             for i in range(len(X1)):
                 for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=sigma)
+                    K[i,j] = kern(X1[i], X2[j], sigma=self.sigma)
             return K
         else:
             K = np.zeros((len(X1), len(X1)))
@@ -201,6 +204,7 @@ class svm_u_problem():
         self.xkernel = xkernel
         self.xSkernel = xSkernel
         self.xSSkernel = xSSkernel
+        self.gaussian_sigma = -99
 
         if(isinstance(X, np.ndarray)):
             self.X = X
@@ -230,16 +234,17 @@ class svm_u_problem():
 
     def gram_matrix(self, X1, X2, kern):
         if isinstance(kern, Gaussian):
-            #print(kern.getName())
-            SQD = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-            sigma = np.median(SQD)
+            if self.gaussian_sigma == -99:
+                #print(kern.getName())
+                SQD = np.zeros((len(X1), len(X1)))
+                for i in range(len(X1)):
+                    for j in range(len(X1)):
+                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
+                self.gaussian_sigma = np.median(SQD)
             K = np.zeros((len(X1), len(X1)))
             for i in range(len(X1)):
                 for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=sigma)
+                    K[i,j] = kern(X1[i], X2[j], sigma=self.gaussian_sigma)
             return K
         else:
             K = np.zeros((len(X1), len(X1)))

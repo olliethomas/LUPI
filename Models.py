@@ -162,7 +162,14 @@ class SVMp():
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.y[i] == 1:
-                runningTotal += 1 - np.dot(self.wStar, self.xStar[i]) - np.dot(self.w, self.x[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = 0
+                for j in range(self.prob.num):
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = (1/self.prob.gamma)*abcxx
+                runningTotal += 1 - abcxx - ayxx
         return runningTotal
 
 
@@ -170,7 +177,14 @@ class SVMp():
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.y[i] == -1:
-                runningTotal += -1 + np.dot(self.wStar, self.xStar[i]) - np.dot(self.w, self.x[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = 0
+                for j in range(self.prob.num):
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = (1/self.prob.gamma)*abcxx
+                runningTotal += -1 + abcxx - ayxx
         return runningTotal
 
 class SVMdp_simp():
@@ -344,14 +358,22 @@ class SVMdp():
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == 1:
-                runningTotal += 1-np.dot(self.w, self.prob.X[i])
+                #runningTotal += 1-np.dot(self.w, self.prob.X[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                runningTotal += 1 - ayxx
         return runningTotal
 
     def sNeg(self):
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == -1:
-                runningTotal += -1 - np.dot(self.w, self.prob.X[i])
+                #runningTotal += -1 - np.dot(self.w, self.prob.X[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                runningTotal += -1 - ayxx
         return runningTotal
 
     def nPos(self):
@@ -604,12 +626,28 @@ class SVMu():
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.y[i] == 1:
-                runningTotal += 1 - np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+                #runningTotal += 1 - np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = 0
+                for j in range(self.prob.num):
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = (1/self.prob.gamma)*abcxx
+                runningTotal += 1 - abcxx - ayxx
         return runningTotal
 
     def bMinusbStar(self):
         runningTotal = 0
         for i in range(self.L):
             if self.alphas[i] > 1e-5 and self.y[i] == -1:
-                runningTotal += -1 + np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+                #runningTotal += -1 + np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+                ayxx = 0
+                for j in range(self.prob.num):
+                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = 0
+                for j in range(self.prob.num):
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
+                abcxx = (1/self.prob.gamma)*abcxx
+                runningTotal += -1 + abcxx - ayxx
         return runningTotal
