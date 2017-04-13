@@ -3,6 +3,7 @@ import numpy as np
 from cvxopt import matrix, solvers
 from numpy.linalg import matrix_rank as mr
 import logging
+from sklearn.svm import SVR
 
 class SVM():
     def get_name(self):
@@ -49,7 +50,7 @@ class SVM():
                 xm_xs = prob.xkernel(xS[m], xS[s])
                 innerTotal += am*ym*xm_xs
             sumTotal += yS[s] - innerTotal
-        bias = sumTotal/len(yS)
+        bias = sumTotal/len(yS) if len(yS) > 0 else [0]
         clf = classifier()
         clf.w = w
         clf.b = bias[0]
@@ -651,3 +652,72 @@ class SVMu():
                 abcxx = (1/self.prob.gamma)*abcxx
                 runningTotal += -1 + abcxx - ayxx
         return runningTotal
+
+class KT():
+    def train(self, prob: svm_problem):
+        self.x = prob.X
+        self.y = prob.Y
+        self.C = prob.C
+        self.prob = prob
+
+        self.NUM = self.x.shape[0]
+
+        svm = SVM()
+        priv_clf = svm.train(prob.Xstar, prob)
+
+        frames = np.zeros((prob.num,len(priv_clf.support_vectors)))
+        for i in range(prob.num):
+            for j in range(len(priv_clf.support_vectors)):
+                frames[i][j] = prob.xkernel((priv_clf.support_vectors[j]),prob.Xstar[i])
+
+        training_pairs = np.zeros((prob.num,len(priv_clf.support_vectors)), dtype=object)
+        for i in range(prob.num):
+            for j in range(len(priv_clf.support_vectors)):
+                training_pairs[i][j] = [prob.X[i], frames[i][j]]
+        training_pairs = np.array(training_pairs)
+
+        regr_pairs = np.zeros((len(priv_clf.support_vectors),prob.num), dtype=object)
+        for i in range(prob.num):
+            for j in range(len(priv_clf.support_vectors)):
+                regr_pairs[j][i] = training_pairs[i][j]
+
+        self.models = []
+        self.polyFit = []
+        for dataSet in regr_pairs:
+            self.regr = SVR(kernel='poly')
+            xs = []
+            ys = []
+            for i in range(prob.num):
+                xs.append(dataSet[i][0].flatten())
+                ys.append(dataSet[i][1])
+            xs = np.array(xs)
+            ys = np.array(ys)
+            self.models.append(self.regr.fit(xs, ys))
+
+        new_xs = []
+        new_ys = []
+        for i in range(prob.num):
+            new_xs.append(self.F(prob.X[i].reshape(1,-1)).flatten())
+            new_ys.append(priv_clf.predict(prob.Xstar[i]))
+        new_x = np.array(new_xs)
+        new_y = np.array(new_ys)
+        new_prob = svm_problem(new_x, prob.Xstar, new_y)
+
+        new_svm = SVMdp()
+        self.clf = new_svm.train(new_prob)
+        self.support_vectors = self.clf.support_vectors
+        self.w = self.clf.w
+        self.b = self.clf.b
+
+    def F(self, x):
+        toReturn = []
+        for i in range(len(self.models)):
+            #x_ = self.polyFit[i].transform(x)
+            toReturn.append(self.models[i].predict(x))
+        toReturn = np.array(toReturn)
+        return toReturn
+
+    def predict(self, x):
+        new_x = np.array(self.F(x.reshape(1,-1)).flatten())
+        return self.clf.predict(new_x.T)
+

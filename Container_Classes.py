@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler as ss
 
 class svm_problem():
-    def __init__(self, X, Xstar, Y, c=1.0, gamma=1.0, delta=1.0, xk=Linear(), xSk=Linear()):
+    def __init__(self, X, Xstar, Y, c=1.0, gamma=1.0, delta=10.0, xk=Linear(), xSk=Linear()):
         self.C = c
         self.gamma = gamma
         self.delta = delta
@@ -150,25 +150,8 @@ class classifier():
         self.sigma = -99
 
         self.support_vectors = []
-        #self.scaler = object()
 
     def predict(self, x):
-        #if isinstance(x, np.ndarray):
-        #    x = x.reshape(1,-1)
-        #else:
-        #    x = np.array(x).reshape(1,-1)
-        #xprime = self.scaler.transform(x).ravel()
-
-        #result = self.b
-        #for z_i, x_i, y_i in zip(self.alphas,
-        #                         self.xs,
-        #                         self.ys):
-        #    result += z_i * y_i * self.kern(x_i, x)
-        #print("Tulloch: ", result)
-        #print("naive:", np.dot(self.w,x)+self.b)
-        #GMx = self.gram_matrix(x, self.xs, self.kern)
-        #print("me: ", np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b)
-        #return np.sign(np.dot(self.w,x)+self.b)
         GMx = self.gram_matrix(x, self.xs, self.kern)
         return np.sign(np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b)
 
