@@ -196,6 +196,14 @@ class SVMdp_simp():
         xStar = prob.Xstar
         y = prob.Y
         C = prob.C
+        C2 = prob.gamma
+
+        xk = prob.xkernel
+        xsk = prob.xSkernel
+
+        prob.C = C2
+        prob.xkernel = xsk
+
 
         NUM = x.shape[0]
         DIM = x.shape[1]
@@ -207,6 +215,9 @@ class SVMdp_simp():
         for i in range(prob.num):
             output = (1- prob.Y[i]*(xStar_clf.f(prob.Xstar[i])))
             xi_star_amended[i] = max(0, output)
+
+        prob.C = C
+        prob.xkernel = xk
 
         Ky = prob.yi_yj
         Kx = prob.xi_xj
@@ -659,11 +670,21 @@ class KT():
         self.y = prob.Y
         self.C = prob.C
         self.prob = prob
+        self.xkern = prob.xkernel
 
         self.NUM = self.x.shape[0]
 
+        C2 = prob.gamma
+        xsk = prob.xSkernel
+
+        prob.C = C2
+        prob.xkernel = xsk
+
         svm = SVM()
         priv_clf = svm.train(prob.Xstar, prob)
+
+        prob.C = self.C
+        prob.xkernel = self.xkern
 
         frames = np.zeros((prob.num,len(priv_clf.support_vectors)))
         for i in range(prob.num):

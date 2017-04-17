@@ -71,15 +71,20 @@ class svm_problem_tuple():
             self.xkernel = prob_tuple[7]
             self.xSkernel = prob_tuple[8]
         elif len(prob_tuple) == 12: # SVMd+ - sa
-            self.gamma = 1
-            self.delta = prob_tuple[6]
-            self.xkernel = prob_tuple[7]
-            self.xSkernel = prob_tuple[8]
+            self.gamma = prob_tuple[6]
+            self.delta = prob_tuple[7]
+            self.xkernel = prob_tuple[8]
+            self.xSkernel = prob_tuple[9]
         elif len(prob_tuple) == 13: # SVMd+
             self.gamma = prob_tuple[7]
             self.delta = prob_tuple[6]
             self.xkernel = prob_tuple[8]
             self.xSkernel = prob_tuple[9]
+        elif len(prob_tuple) == 15: # KT
+            self.gamma = prob_tuple[6]
+            self.delta = 1
+            self.xkernel = prob_tuple[7]
+            self.xSkernel = prob_tuple[8]
         else:
             print("poorly formed problem")
 

@@ -38,6 +38,9 @@ def t(data, model, test_x, test_y):
     test_y = np.asarray(test_y).reshape(-1)
     if isinstance(svm, SVM):
         clf = svm.train(data.X, data)
+    elif isinstance(svm, KT):
+        svm.train(data)
+        clf = svm
     else:
         clf = svm.train(data)
     predictions = []
@@ -145,7 +148,7 @@ def test_SVMmt(best, train_x, train_xS, train_y, test_x, test_labels):
         "Quadratic" : Polynomial(),
         "Linear" : Linear()}
 
-    testprob = svm_problem(train_x, train_xS, train_y, best[0], 0, best[1], kern_options[best[2]], kern_options[best[3]])
+    testprob = svm_problem(train_x, train_xS, train_y, best[0], best[1], best[2], kern_options[best[3]], kern_options[best[4]])
     svm = SVMdp_simp()
     clf = svm.train(testprob)
     predictions = []
@@ -168,7 +171,7 @@ def test_SVMmt(best, train_x, train_xS, train_y, test_x, test_labels):
     pre = get_precision(tp, fp, fn, tn)
     rec = get_recall(tp, fp, fn, tn)
     fs = get_fscore(pre, rec)
-    return(best[0], best[1], best[2], best[3], acc, fs)
+    return(best[0], best[1], best[2], best[3], best[4], acc, fs)
 
 def test_SVMdp(best, train_x, train_xS, train_y, test_x, test_labels):
     test_y = test_labels
@@ -233,6 +236,38 @@ def test_SVMu(best, train_x, train_xS, train_y, test_x, test_labels):
     rec = get_recall(tp, fp, fn, tn)
     fs = get_fscore(pre, rec)
     return(best[0], best[1], best[2], best[3], best[4], best[5], best[6], acc, fs)
+
+def test_KT(best, train_x, train_xS, train_y, test_x, test_labels):
+    test_y = test_labels
+    kern_options = {
+        "Gaussian" : Gaussian(),
+        "Quadratic" : Polynomial(),
+        "Linear" : Linear()}
+
+    testprob = svm_problem(train_x, train_xS, train_y, best[0], best[1], 0, kern_options[best[2]], kern_options[best[3]])
+    svm = KT()
+    svm.train(testprob)
+    predictions = []
+    for test_point in test_x:
+        predictions.append(svm.predict(test_point))
+    tp = 0
+    fp = 0
+    fn = 0
+    tn = 0
+    for i in range(len(test_y)):
+        if test_y[i] == 1 and predictions[i] == 1:
+            tp += 1
+        if test_y[i] == -1 and predictions[i] == 1:
+            fp += 1
+        if test_y[i] == 1 and predictions[i] == -1:
+            fn += 1
+        if test_y[i] == -1 and predictions[i] == -1:
+            tn += 1
+    acc = get_accuracy(tp, fp, fn, tn)
+    pre = get_precision(tp, fp, fn, tn)
+    rec = get_recall(tp, fp, fn, tn)
+    fs = get_fscore(pre, rec)
+    return(best[0], best[1], best[2], best[3], acc, fs)
 
 def svm_comp(clf, prob, test_x, test_y):
     tp = 0
@@ -433,11 +468,101 @@ def grid_search_SVM(C, dataset):
     with open('SVM_results_f_'+str(dataset), 'wb') as fp:
         pickle.dump(results_f, fp)
 
+def grid_search_KT(C, dataset):
+
+    xkerns = [Linear()]
+    xskerns = [Linear()]
+
+    results_acc = []
+    results_f = []
+    results_to_save = []
+
+    for i in range(10):
+        prob_data = []
+        test_labels = get_array("Data/Dataset"+str(dataset)+"/tech"+str(dataset)+"-0-"+str(i)+"-test_labels.npy")
+        test_x = get_array("Data/Dataset"+str(dataset)+"/tech"+str(dataset)+"-0-"+str(i)+"-test_normal.npy")
+        train_y = get_array("Data/Dataset"+str(dataset)+"/tech"+str(dataset)+"-0-"+str(i)+"-train_labels.npy").reshape(-1,1)
+        train_x = get_array("Data/Dataset"+str(dataset)+"/tech"+str(dataset)+"-0-"+str(i)+"-train_normal.npy")
+        train_xS = get_array("Data/Dataset"+str(dataset)+"/tech"+str(dataset)+"-0-"+str(i)+"-train_priv.npy")
+        prob_data.append([test_labels, test_x, train_y, train_x, train_xS])
+
+        prob_data = np.array(prob_data)
+        conc_data = []
+        for j in range(len(prob_data)):
+            conc_data = np.hstack((train_x, train_xS))
+            conc_data = np.hstack((conc_data, train_y))
+        np.random.shuffle(conc_data)
+
+        kf = KFold(shuffle=True, n_splits=5)
+        inner_folds_train_index = []
+        inner_folds_test_index = []
+        inner_folds_train = []
+        inner_folds_test = []
+        for train, test in kf.split(conc_data):
+            inner_folds_train_index.append(train)
+            inner_folds_test_index.append(test)
+
+        for j in range(5):
+            inner_folds_train.append(np.array(conc_data[inner_folds_train_index[j]]))
+            inner_folds_test.append(np.array(conc_data[inner_folds_test_index[j]]))
+        del conc_data, prob_data, train, test
+
+        inner_probs = []
+        for j in range(5):
+            inner_x = inner_folds_train[j][:,0:train_x.shape[1]]
+            inner_xS = inner_folds_train[j][:, train_x.shape[1]:train_x.shape[1]+train_xS.shape[1]]
+            inner_y = inner_folds_train[j][:, train_x.shape[1]+train_xS.shape[1]:train_x.shape[1]+train_xS.shape[1]+train_y.shape[1]]
+            inner_test_x = inner_folds_test[j][:, :test_x.shape[1]]#test_x.shape[1]:test_x.shape[1]+train_xS.shape[1]]
+            inner_test_y = inner_folds_test[j][:, -1:]
+            inner_probs.append([inner_test_y, inner_test_x, inner_y, inner_x, inner_xS, i, j])
+        del inner_folds_test, inner_folds_test_index, inner_folds_train, inner_folds_train_index, kf, inner_test_x, inner_test_y, inner_x, inner_xS, inner_y, j
+
+        inner_probs = np.array(inner_probs)
+
+        svm_prob = [(data[3], data[4], data[2], data[1], data[0], c, c2, xk, xsk, data[5], data[6], 0, 0, 0, 0) for data in inner_probs for c in C for c2 in C for xk in xkerns for xsk in xskerns]
+        print(len(svm_prob), dataset, i)
+        del inner_probs
+
+        noCores = 4
+        try:
+            noCores = mp.cpu_count()
+            logging.info("No of Cores: "+str(noCores))
+        except:
+            logging.info("Number of cores couldn't be determined")
+
+        pool = mp.Pool(noCores)
+        resultsSVM = pool.map(ktThread, svm_prob)
+        pool.close()
+        pool.join()
+
+        kerns =  ["Linear"]
+        kerns2 =  ["Linear"]
+        inner_svm_results = [(c, c2, xker, xsker, np.mean([x[3] for x in resultsSVM if x[5] == c and x[6] == c2 and x[7] == xker and x[8] == xsker]), np.mean([x[4] for x in resultsSVM if x[5] == c and x[6] == c2 and x[7] == xker and x[8] == xsker])) for c in C for c2 in C for xker in kerns for xsker in kerns2]
+        results_to_save.append(inner_svm_results)
+        print(inner_svm_results)
+        best_acc = max(inner_svm_results, key=itemgetter(4, 5))
+        best_f = max(inner_svm_results, key=itemgetter(5, 4))
+
+        results_acc.append(test_KT(best_acc, train_x, train_xS, train_y, test_x, test_labels))
+        results_f.append(test_KT(best_f, train_x, train_xS, train_y, test_x, test_labels))
+
+    print(results_acc)
+    print("Accuracy: ", np.mean([x[4] for x in results_acc]))
+    print(results_f)
+    print("F-Score: ", np.mean([x[5] for x in results_f]))
+
+    with open('KT_results_all_'+str(dataset)+'_lin_lin', 'wb') as fp:
+        pickle.dump(results_to_save, fp)
+    with open('KT_results_acc_'+str(dataset)+'_lin_lin', 'wb') as fp:
+        pickle.dump(results_acc, fp)
+    with open('KT_results_f_'+str(dataset)+'_lin_lin', 'wb') as fp:
+        pickle.dump(results_f, fp)
+
 def grid_search_SVMp(C, Gamma, dataset):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-    xkerns = [Gaussian(), Polynomial(), Linear()]
-    xskerns = [Gaussian(), Polynomial(), Linear()]
+    xkerns = [Linear()]
+    xskerns = [Polynomial()]
 
     results_acc = []
     results_f = []
@@ -503,8 +628,9 @@ def grid_search_SVMp(C, Gamma, dataset):
 
         resultsSVM = sorted(resultsSVMp, key=itemgetter(6,1,2,4,3))
 
-        kerns = ["Gaussian", "Linear", "Quadratic"]
-        inner_svm_results = [(c, g, xker, xSk, np.mean([x[3] for x in resultsSVM if x[5] == c and x[6] == g and x[7] == xker and x[8] == xSk]), np.mean([x[4] for x in resultsSVM if x[5] == c and x[6] == g and x[7] == xker and x[8] == xSk])) for c in C for g in Gamma for xker in kerns for xSk in kerns]
+        kerns = ["Linear"]
+        kerns2 = ["Quadratic"]
+        inner_svm_results = [(c, g, xker, xSk, np.mean([x[3] for x in resultsSVM if x[5] == c and x[6] == g and x[7] == xker and x[8] == xSk]), np.mean([x[4] for x in resultsSVM if x[5] == c and x[6] == g and x[7] == xker and x[8] == xSk])) for c in C for g in Gamma for xker in kerns for xSk in kerns2]
         results_to_save.append(inner_svm_results)
         print(inner_svm_results)
         best_acc = max(inner_svm_results, key=itemgetter(4, 5))
@@ -519,18 +645,18 @@ def grid_search_SVMp(C, Gamma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[5] for x in results_f]))
 
-    with open('SVMp_results_all_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_all_'+str(dataset)+'_lin_quad', 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMp_results_acc_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_acc_'+str(dataset)+'_lin_quad', 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMp_results_f_'+str(dataset), 'wb') as fp:
+    with open('SVMp_results_f_'+str(dataset)+'_lin_quad', 'wb') as fp:
         pickle.dump(results_f, fp)
 
-def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
+def grid_search_SVMmt(C, Delta, dataset):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-    xkerns = [Gaussian(), Polynomial(), Linear()]
-    xskerns = [Gaussian(), Polynomial(), Linear()]
+    xkerns = [Linear()]
+    xskerns = [Gaussian()]
 
     results_acc = []
     results_f = []
@@ -578,7 +704,7 @@ def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
 
         inner_probs = np.array(inner_probs)
 
-        svmdps_prob = [(data[3], data[4], data[2], data[1], data[0], c, d, xk, xsk, data[5], data[6], 0) for data in inner_probs for c in C for d in Delta for xk in xkerns for xsk in xskerns]
+        svmdps_prob = [(data[3], data[4], data[2], data[1], data[0], c, c2, d, xk, xsk, data[5], data[6]) for data in inner_probs for c in C for c2 in C for d in Delta for xk in xkerns for xsk in xskerns]
         print(len(svmdps_prob), dataset, i)
         del inner_probs
 
@@ -594,8 +720,9 @@ def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
         pool.close()
         pool.join()
 
-        kerns =  ["Gaussian", "Linear", "Quadratic"]
-        inner_svm_results = [(c, d, xker, xsker, np.mean([x[3] for x in resultsSVMdpsa if x[5] == c and x[6] == d and x[7] == xker and x[8] == xsker]), np.mean([x[4] for x in resultsSVMdpsa if x[5] == c and x[6] == d and x[7] == xker and x[8] == xsker])) for c in C for d in Delta for xker in kerns for xsker in kerns]
+        kerns =  ["Linear"]
+        kerns2 =  ["Gaussian"]
+        inner_svm_results = [(c, c2, d, xker, xsker, np.mean([x[3] for x in resultsSVMdpsa if x[5] == c and x[6] == c2 and x[7] == d and x[8] == xker and x[9] == xsker]), np.mean([x[4] for x in resultsSVMdpsa if x[5] == c and x[6] == c2 and x[7] == d and x[8] == xker and x[9] == xsker])) for c in C for c2 in C for d in Delta for xker in kerns for xsker in kerns2]
         results_to_save.append(inner_svm_results)
         print(inner_svm_results)
         best_acc = max(inner_svm_results, key=itemgetter(4, 5))
@@ -605,22 +732,22 @@ def grid_search_SVMmt(C, Delta, dataset, Sigma=[]):
         results_f.append(test_SVMmt(best_f, train_x, train_xS, train_y, test_x, test_labels))
 
     print(results_acc)
-    print("Accuracy: ", np.mean([x[4] for x in results_acc]))
+    print("Accuracy: ", np.mean([x[5] for x in results_acc]))
     print(results_f)
-    print("F-Score: ", np.mean([x[5] for x in results_f]))
+    print("F-Score: ", np.mean([x[6] for x in results_f]))
 
-    with open('SVMmt_results_all_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_all_'+str(dataset)+"_fixed_delta_lin_gaus_am", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMmt_results_acc_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_acc_'+str(dataset)+"_fixed_delta_lin_gaus_am", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMmt_results_f_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMmt_results_f_'+str(dataset)+"_fixed_delta_lin_gaus_am", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMdp(C, Delta, Gamma, dataset):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-    xkerns = [Gaussian(), Polynomial(), Linear()]
-    xskerns = [Gaussian(), Polynomial(), Linear()]
+    xkerns = [Linear()]
+    xskerns = [Gaussian()]
 
     results_acc = []
     results_f = []
@@ -684,8 +811,9 @@ def grid_search_SVMdp(C, Delta, Gamma, dataset):
         pool.close()
         pool.join()
 
-        kerns =  ["Gaussian", "Linear", "Quadratic"]
-        inner_svm_results = [(c, g, d, xker, xsker, np.mean([x[3] for x in resultsSVMdp if x[5] == c and x[6] == d and x[7] == g and x[8] == xker and x[9] == xsker]), np.mean([x[4] for x in resultsSVMdp if x[5] == c and x[6] == d and x[7] == g and x[8] == xker and x[9] == xsker])) for c in C for d in Delta for g in Gamma for xker in kerns for xsker in kerns]
+        kerns =  ["Linear"]
+        kerns2 =  ["Gaussian"]
+        inner_svm_results = [(c, g, d, xker, xsker, np.mean([x[3] for x in resultsSVMdp if x[5] == c and x[6] == d and x[7] == g and x[8] == xker and x[9] == xsker]), np.mean([x[4] for x in resultsSVMdp if x[5] == c and x[6] == d and x[7] == g and x[8] == xker and x[9] == xsker])) for c in C for d in Delta for g in Gamma for xker in kerns for xsker in kerns2]
         results_to_save.append(inner_svm_results)
         print(inner_svm_results)
         best_acc = max(inner_svm_results, key=itemgetter(5, 6))
@@ -700,19 +828,19 @@ def grid_search_SVMdp(C, Delta, Gamma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[6] for x in results_f]))
 
-    with open('SVMdp_results_all_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMdp_results_all_'+str(dataset)+"_fixed_delta_lin_gaus", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMdp_results_acc_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMdp_results_acc_'+str(dataset)+"_fixed_delta_lin_gaus", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMdp_results_f_'+str(dataset)+"_fixed_delta", 'wb') as fp:
+    with open('SVMdp_results_f_'+str(dataset)+"_fixed_delta_lin_gaus", 'wb') as fp:
         pickle.dump(results_f, fp)
 
 def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-    xkerns = [Gaussian(), Polynomial(), Linear()]
-    xskerns = [Gaussian(), Polynomial(), Linear()]
-    xsskerns = [Gaussian(), Polynomial(), Linear()]
+    xkerns = [Gaussian()]
+    xskerns = [Polynomial()]
+    xsskerns = [Gaussian()]
 
     results_acc = []
     results_f = []
@@ -776,8 +904,10 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
         pool.close()
         pool.join()
 
-        kerns = ["Gaussian", "Linear", "Quadratic"]
-        inner_svm_results = [(c, g, s, d, xker, xsker, xssker, np.mean([x[3] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker]), np.mean([x[4] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker])) for c in C for d in Delta for g in Gamma for s in Sigma for xker in kerns for xsker in kerns for xssker in kerns]
+        kerns = ["Gaussian"]
+        kerns2 = ["Quadratic"]
+        kerns3 = ["Gaussian"]
+        inner_svm_results = [(c, g, s, d, xker, xsker, xssker, np.mean([x[3] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker]), np.mean([x[4] for x in resultsSVMu if x[5] == c and x[6] == d and x[7] == g and x[8] == s and x[9] == xker and x[10] == xsker and x[11] == xssker])) for c in C for d in Delta for g in Gamma for s in Sigma for xker in kerns for xsker in kerns2 for xssker in kerns3]
         results_to_save.append(inner_svm_results)
         print(inner_svm_results)
         best_acc = max(inner_svm_results, key=itemgetter(7, 8))
@@ -791,12 +921,13 @@ def grid_search_SVMu(C, Delta, Gamma, Sigma, dataset):
     print(results_f)
     print("F-Score: ", np.mean([x[8] for x in results_f]))
 
-    with open('SVMu_results_all_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+    with open('SVMu_results_all_'+str(dataset)+"_fixed_delta_gaus_quad_gaus", 'wb') as fp:
         pickle.dump(results_to_save, fp)
-    with open('SVMu_results_acc_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+    with open('SVMu_results_acc_'+str(dataset)+"_fixed_delta_gaus_quad_gaus", 'wb') as fp:
         pickle.dump(results_acc, fp)
-    with open('SVMu_results_f_'+str(dataset)+"_fixed_delta_reduced_K", 'wb') as fp:
+    with open('SVMu_results_f_'+str(dataset)+"_fixed_delta_gaus_quad_gaus", 'wb') as fp:
         pickle.dump(results_f, fp)
+
 
 def svmThread(p):
     prob = svm_problem_tuple(p)
@@ -831,7 +962,7 @@ def svmdpsaThread(p):
     svmdpsa_rec = get_recall(svmdpsa_tp, svmdpsa_fp, svmdpsa_fn, svmdpsa_tn)
     svmdpsa_fsc = get_fscore(svmdpsa_pre, svmdpsa_rec)
     logging.info("Completed")
-    return ("SVMd+ - simp", p[9], p[10], svmdpsa_acc, svmdpsa_fsc, p[5], p[6], p[7].getName(), p[8].getName(), svmdpsa_avg_time)
+    return ("SVMd+ - simp", p[10], p[11], svmdpsa_acc, svmdpsa_fsc, p[5], p[6], p[7], p[8].getName(), p[9].getName(), svmdpsa_avg_time)
 
 def svmdpThread(p):
     prob = svm_problem_tuple(p)
@@ -858,6 +989,18 @@ def svmuThread(p):
     logging.info("Completed")
     return ("SVMu", p[12], p[13], svmdp_acc, svmdp_fsc, p[5], p[6], p[7], p[8], p[9].getName(), p[10].getName(), p[11].getName(), svmdp_avg_time)
 
+def ktThread(p):
+    prob = svm_problem_tuple(p)
+    logging.info("Entered multicore process")
+    svmdpsa_tp, svmdpsa_fp, svmdpsa_fn, svmdpsa_tn, svmdpsa_avg_time = comp(KT(), prob, p[3], p[4])
+    logging.info("model trained")
+    svmdpsa_acc = get_accuracy(svmdpsa_tp, svmdpsa_fp, svmdpsa_fn, svmdpsa_tn)
+    svmdpsa_pre = get_precision(svmdpsa_tp, svmdpsa_fp, svmdpsa_fn, svmdpsa_tn)
+    svmdpsa_rec = get_recall(svmdpsa_tp, svmdpsa_fp, svmdpsa_fn, svmdpsa_tn)
+    svmdpsa_fsc = get_fscore(svmdpsa_pre, svmdpsa_rec)
+    logging.info("Completed")
+    return ("SVMkt - simp", p[9], p[10], svmdpsa_acc, svmdpsa_fsc, p[5], p[6], p[7].getName(), p[8].getName(), svmdpsa_avg_time)
+
 
 def main():
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 137) # done
@@ -865,22 +1008,29 @@ def main():
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
     #grid_search_SVM([0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    #grid_search_SVMp([1], [1], 137)
-    #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 174)
-    #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 197)
-    #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 219)
-    #grid_search_SVMp([0.001, 0.01, 0.1, 1, 10, 100, 1000], [0.001, 0.01, 0.1, 1, 10, 100, 1000], 254)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 137) # done
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 174)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 197)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 219)
-    #grid_search_SVMmt([0.001, 0.01, 0.1, 1, 10, 100, 1000], [1000], 254)
-    grid_search_SVMdp([1], [10], [1], 137)
-    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 174)
-    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 197)
-    #grid_search_SVMdp([0.1, 1, 10], [10], [0.1, 1, 10], 219)
-    #grid_search_SVMdp([1], [1000], [1], 254)
-    #grid_search_SVMu([1], [10], [1], [1], 137)
+    #grid_search_SVMp([0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 137)
+    #grid_search_SVMp([0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 174)
+    #grid_search_SVMp([0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 197)
+    #grid_search_SVMp([0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 219)
+    #grid_search_SVMp([0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 254)
+    #grid_search_SVMmt([0.001, 0.1, 10, 1000], [1000], 137) # done
+    #grid_search_SVMmt([0.001, 0.1, 10, 1000], [1000], 174)
+    #grid_search_SVMmt([0.001, 0.1, 10, 1000], [1000], 197)
+    #grid_search_SVMmt([0.001, 0.1, 10, 1000], [1000], 219)
+    #grid_search_SVMmt([0.001, 0.1, 10, 1000], [1000], 254)
+    ##grid_search_SVMdp([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], 137)
+    ##grid_search_SVMdp([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], 174)
+    #grid_search_SVMdp([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], 197)
+    #grid_search_SVMdp([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], 219)
+    #grid_search_SVMdp([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], 254)
+    #grid_search_SVMu([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 137)
+    #grid_search_SVMu([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 174)
+    #grid_search_SVMu([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 197)
+    #grid_search_SVMu([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 219)
+    #grid_search_SVMu([0.001, 0.1, 10, 1000], [1000], [0.001, 0.1, 10, 1000], [0.001, 0.1, 10, 1000], 254)
+    #grid_search_KT([0.001, 0.1, 10, 1000], 137)
+
+
 
     print("----- Reduced Search Accuracy -----")
     with open ('SVM_results_acc_137_reduced_K', 'rb') as fp:
@@ -898,6 +1048,9 @@ def main():
     with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_137_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
     with open ('SVM_results_acc_174_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -911,9 +1064,12 @@ def main():
     with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_174_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
     with open ('SVM_results_acc_197_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -927,9 +1083,12 @@ def main():
     with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_197_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
     with open ('SVM_results_acc_219_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -943,9 +1102,12 @@ def main():
     with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_219_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
     with open ('SVM_results_acc_254_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -959,9 +1121,12 @@ def main():
     with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_254_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
 
     print("----- Reduced Search F-Score -----")
@@ -980,6 +1145,9 @@ def main():
     with open ('SVMu_results_f_137_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_137_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
     with open ('SVM_results_f_174_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -993,9 +1161,12 @@ def main():
     with open ('SVMdp_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("174 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    #with open ('SVMu_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('SVMu_results_f_174_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_174_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
     with open ('SVM_results_f_197_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -1009,9 +1180,12 @@ def main():
     with open ('SVMdp_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("197 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    #with open ('SVMu_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('SVMu_results_f_197_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_197_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
     with open ('SVM_results_f_219_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -1025,9 +1199,12 @@ def main():
     with open ('SVMdp_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("219 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    #with open ('SVMu_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('SVMu_results_f_219_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_219_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
     with open ('SVM_results_f_254_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
@@ -1041,253 +1218,206 @@ def main():
     with open ('SVMdp_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    #with open ('SVMu_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('SVMu_results_f_254_fixed_delta_reduced_K', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_254_reduced', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
+
 
     print("----- Accuracy -----")
-    with open ('SVM_results_acc_137', 'rb') as fp:
+    with open ('SVM_results_acc_137_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_137_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_acc_137_fixed_delta', 'rb') as fp:
+    with open ('SVMp_results_acc_137_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("137 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_137_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMmt Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_137_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_137_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_137_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
-    with open ('SVM_results_acc_174', 'rb') as fp:
+    with open ('SVM_results_acc_174_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("174 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_174_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_acc_174_fixed_delta', 'rb') as fp:
+    with open ('SVMp_results_acc_174_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("174 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_174_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMmt Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_174_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_174_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_174_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
-    with open ('SVM_results_acc_197', 'rb') as fp:
+    with open ('SVM_results_acc_197_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("197 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_197_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_acc_197_fixed_delta', 'rb') as fp:
+    with open ('SVMp_results_acc_197_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("197 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_197_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMmt Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_197_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_197_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_197_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
-    with open ('SVM_results_acc_219', 'rb') as fp:
+    with open ('SVM_results_acc_219_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("219 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_219_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_acc_219_fixed_delta', 'rb') as fp:
+    with open ('SVMp_results_acc_219_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("219 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_219_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMmt Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_219_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_219_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_219_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
-    with open ('SVM_results_acc_254', 'rb') as fp:
+    with open ('SVM_results_acc_254_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("254 SVM Accuracy:", np.mean([item[2] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_254_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_acc_254_fixed_delta', 'rb') as fp:
+    with open ('SVMp_results_acc_254_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("254 SVMmt Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
+    with open ('SVMmt_results_acc_254_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMmt Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMdp_results_acc_254_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMu_results_acc_254_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
+    with open ('KT_results_acc_254_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 KT Accuracy:", np.mean([item[4] for item in itemlistsvm]))
 
     print("----- F-Score -----")
-    with open ('SVM_results_f_137', 'rb') as fp:
+    with open ('SVM_results_f_137_linear', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_137', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_137_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_137_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("137 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
-
-    with open ('SVM_results_f_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_174_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_174_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_174_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("174 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
-
-    with open ('SVM_results_f_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_197_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_197_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_197_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("197 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
-
-    with open ('SVM_results_f_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_219_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_219_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_219_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("219 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
-
-    with open ('SVM_results_f_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    #with open ('SVMp_results_acc_254_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVM+ Accuracy:", np.mean([item[4] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_254_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMdp_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMd+ Accuracy:", np.mean([item[5] for item in itemlistsvm]))
-    #with open ('SVMu_results_acc_254_fixed_delta_reduced_K', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print("254 SVMu Accuracy:", np.mean([item[7] for item in itemlistsvm]))
-
-    '''
-    with open ('SVM_results_f_137', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    with open ('SVM_results_f_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    with open ('SVM_results_f_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    with open ('SVM_results_f_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-    with open ('SVM_results_f_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
-
-
-    with open ('SVMp_results_f_137', 'rb') as fp:
+    with open ('SVMp_results_f_137_lin_quad', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMp_results_f_174', 'rb') as fp:
+    with open ('SVMmt_results_f_137_fixed_delta_lin_lin_am', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
-    print("174 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMp_results_f_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMp_results_f_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMp_results_f_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
-
-
-    with open ('SVMmt_results_f_137_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("137 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_174_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_197_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_219_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-    with open ('SVMmt_results_f_254_fixed_delta', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVMmt F-Score:", np.mean([item[5] for item in itemlistsvm]))
-
-
-    with open ('SVMdp_results_f_137', 'rb') as fp:
+    print("137 SVMmt F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_137_fixed_delta_lin_lin', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    with open ('SVMdp_results_f_174', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("174 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    with open ('SVMdp_results_f_197', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("197 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    with open ('SVMdp_results_f_219', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("219 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-    with open ('SVMdp_results_f_254', 'rb') as fp:
-        itemlistsvm = pickle.load(fp)
-    print("254 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
-
-    with open ('SVMu_results_f_137', 'rb') as fp:
+    with open ('SVMu_results_f_137_fixed_delta_lin_quad_gaus', 'rb') as fp:
         itemlistsvm = pickle.load(fp)
     print("137 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_137_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("137 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
+    with open ('SVM_results_f_174_linear', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_174_lin_quad', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_174_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMmt F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_174_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMu_results_f_174_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_174_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("174 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
+    with open ('SVM_results_f_197_linear', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_197_lin_quad', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_197_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMmt F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_197_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMu_results_f_197_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_197_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("197 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
 
-    #with open ('SVMp_results_f_137', 'rb') as fp:
-    #    itemlistsvm = pickle.load(fp)
-    #print([item for item in itemlistsvm])
-    #with open ('SVMp_results_acc', 'rb') as fp:
-    #    itemlistsvmp = pickle.load(fp)
-    #print(np.mean([item[4] for item in itemlistsvmp]))
-    '''
+    with open ('SVM_results_f_219_linear', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_219_lin_quad', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_219_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMmt F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_219_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMu_results_f_219_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_219_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("219 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
+
+    with open ('SVM_results_f_254_linear', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM F-Score:", np.mean([item[3] for item in itemlistsvm]))
+    with open ('SVMp_results_f_254_lin_quad', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVM+ F-Score:", np.mean([item[5] for item in itemlistsvm]))
+    with open ('SVMmt_results_f_254_fixed_delta_lin_lin_am', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMmt F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMdp_results_f_254_fixed_delta_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMd+ F-Score:", np.mean([item[6] for item in itemlistsvm]))
+    with open ('SVMu_results_f_254_fixed_delta_lin_quad_gaus', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 SVMu F-Score:", np.mean([item[8] for item in itemlistsvm]))
+    with open ('KT_results_f_254_lin_lin', 'rb') as fp:
+        itemlistsvm = pickle.load(fp)
+    print("254 KT F-Score:", np.mean([item[5] for item in itemlistsvm]))
+
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -1296,114 +1426,3 @@ if __name__ == "__main__":
     print(mp.get_start_method())
     #mp.context
     main()
-
-
-'''
-with open ('SVMoutfile', 'rb') as fp:
-    itemlist = pickle.load(fp)
-
-train_x = get_array("Data/Dataset"+str(137)+"/tech"+str(137)+"-0-"+str(0)+"-train_normal.npy")
-print(train_x.shape)
-
-itemlist = sorted(itemlist, key=itemgetter(6,1,2,4,3))
-print(itemlist[0])
-print("===== SVM =====")
-for ker in ["Gaussian", "Linear", "Polynomial p=2"]:
-    print("\n",ker)
-    print("====================")
-    for c in [0.1, 1, 10]:
-        ca = 0
-        cf = 0
-        for i in range(3):
-            temp = [(x[3],x[4]) for x in itemlist if x[5] == c and x[6] == ker and x[1] == i]
-            ca += np.mean([x[0] for x in temp])
-            cf += np.mean([x[1] for x in temp])
-        print("C =", c, "Average accuracy:", ca/3, "F-Score:", cf/3)
-
-
-with open ('SVMPLUSoutfile', 'rb') as fp:
-    itemlist = pickle.load(fp)
-itemlist = sorted(itemlist, key=itemgetter(6,1,2,4,3))
-print("===== SVM+ =====")
-for xker in ["Gaussian", "Linear", "Polynomial p=2"]:
-    for xsker in ["Gaussian", "Linear", "Polynomial p=2"]:
-        print("\nX: ",xker, "X*:", xsker)
-        print("====================")
-        for c in [0.1, 1, 10]:
-            for g in [0.1, 1, 10]:
-                gca = 0
-                gcf = 0
-                for i in range (3):
-                    temp = [(x[3],x[4]) for x in itemlist if x[5] == c and x[6] == g and x[7] == xker and x[8] == xsker and x[1] == i]
-                    gca += np.mean([x[0] for x in temp])
-                    gcf += np.mean([x[1] for x in temp])
-                print("C =", c, "Gam =", g, "Average accuracy:", gca/3, "F-Score:", gcf/3)
-
-
-with open ('SVMdpSIMPoutfile', 'rb') as fp:
-    itemlist = pickle.load(fp)
-itemlist = sorted(itemlist, key=itemgetter(6,1,2,4,3))
-print("===== SVMd+ simp =====")
-for xker in ["Gaussian", "Linear", "Polynomial p=2"]:
-    for xsker in ["Gaussian", "Linear", "Polynomial p=2"]:
-        print("\nX: ",xker, "X*:", xsker)
-        print("====================")
-        for c in [0.1, 1, 10]:
-            for d in [0.1, 1, 10]:
-                dca = 0
-                dcf = 0
-                for i in range (3):
-                    temp = [(x[3],x[4]) for x in itemlist if x[5] == c and x[6] == d and x[7] == xker and x[8] == xsker and x[1] == i]
-                    dca += np.mean([x[0] for x in temp])
-                    dcf += np.mean([x[1] for x in temp])
-                print("C =", c, "Del =", d, "Average accuracy:", dca/3, "F-Score:", dcf/3)
-
-
-with open ('SVMdpoutfileRTEST', 'rb') as fp:
-    itemlist = pickle.load(fp)
-itemlist = sorted(itemlist, key=itemgetter(6,1,2,4,3))
-print("===== SVMd+ =====")
-for xker in ["Gaussian"]:#, "Linear", "Polynomial p=2"]:
-    for xsker in ["Gaussian"]:#, "Linear", "Polynomial p=2"]:
-        print("\nX: ",xker, "X*:", xsker)
-        print("====================")
-        for c in [0.1, 1, 10]:
-            for d in [10]:
-                for g in [0.1, 1, 10]:
-                    gdca = 0
-                    gdcf = 0
-                    for i in range (3):
-                        temp = [(x[3],x[4]) for x in itemlist if x[5] == c and x[6] == d and x[7] == g and x[8] == xker and x[9] == xsker and x[1] == i]
-                        gdca += np.mean([x[0] for x in temp])
-                        gdcf += np.mean([x[1] for x in temp])
-                    print("C =", c, "Del = ", d, "Gam =", g, "Average accuracy:", gdca/3, "F-Score:", gdcf/3)
-
-with open ('SVMuoutfileRTEST', 'rb') as fp:
-    itemlist = pickle.load(fp)
-print(itemlist[1])
-itemlist = sorted(itemlist, key=itemgetter(6,1,2,4,3))
-print("===== SVMu =====")
-for xker in ["Gaussian", "Linear", "Polynomial p=2"]:
-    for xsker in ["Gaussian", "Linear", "Polynomial p=2"]:
-        for xssker in ["Gaussian", "Linear", "Polynomial p=2"]:
-            print("\nX: ",xker, "X*:", xsker, "X**:", xssker)
-            print("====================")
-            for c in [0.1, 1, 10]:
-                for d in [10]:
-                    for g in [0.1, 1, 10]:
-                        for S in [S1 for S1 in [0.1, 1, 10] if S1 >= 1/g]:
-                            gdca = 0
-                            gdcf = 0
-                            #for i in range (3):
-                            #    temp = [(x[3], x[4]) for x in itemlist if x[5] == c and x[6] == d and x[7] == g and x[8] == G and x[9] == xker and x[10] == xsker and x[11] == xssker]
-                            #    gdca += np.mean([x[0] for x in temp])
-                            #    gdcf += np.mean([x[1] for x in temp])
-                            #print([x[3] for x in itemlist if x[5] == c and x[6] == d and x[7] == g and x[8] == G and x[9] == xker and x[10] == xsker and x[11] == xssker])
-                            print("C =", c,
-                                  "Del = ", d,
-                                  "gam =", g,
-                                  "Gam =", S,
-                                  "Average accuracy:", np.mean([x[3] for x in itemlist if x[5] == c and x[6] == d and x[7] == g and x[8] == S and x[9] == xker and x[10] == xsker and x[11] == xssker]),
-                                  "Average F-Score:", np.mean([x[4] for x in itemlist if x[5] == c and x[6] == d and x[7] == g and x[8] == S and x[9] == xker and x[10] == xsker and x[11] == xssker]))
-                            #print("C =", c, "Del = ", d, "Gam =", g, "Average accuracy:", gdca/3, "F-Score:", gdcf/3)
-'''
