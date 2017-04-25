@@ -1,107 +1,179 @@
 from Container_Classes import *
 import numpy as np
 from cvxopt import matrix, solvers
-from numpy.linalg import matrix_rank as mr
-import logging
 from sklearn.svm import SVR
 
-class SVM():
-    def get_name(self):
+
+class SVM:
+    """
+    Vanilla Soft-Margin SVM implementation
+
+    Optimization problem solved using CVXOPT.
+
+    """
+
+    @staticmethod
+    def get_name():
+        """
+        Return name of training model.
+
+        Returns
+        -------
+        String
+            The name of the training model
+
+        """
         return "SVM"
-    def train(self, x, prob : svm_problem):
-        logging.info("Entered Train")
-        x = x
-        y = prob.Y
-        C = prob.C
 
-        NUM = x.shape[0]
-        DIM = x.shape[1]
+    @staticmethod
+    def train(x, prob: SvmProblem):
+        """
+        Train the model with a given set of training data.
 
-        K = y[:, None] * x # Yeah, this is a bit different so that it can work on x and x*
-        K = np.dot(K, K.T)
-        P = matrix(K, tc='d')
-        q = matrix(-np.ones((NUM, 1)), tc='d')
-        G1 = -np.eye(NUM)
-        G2 = np.eye(NUM)
+        Parameters
+        ----------
+        x : numpy.array
+            Explicitly stated dataset to allow SVM to be used in a variety of cases.
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        Returns
+        -------
+        Classifier
+            Classifier object trained by this training model
+
+        """
+
+        # Define the inputs to CVXOPT - See Appendix G.1
+        P = np.zeros((prob.num, prob.num))
+        for i in range(prob.num):
+            for j in range(prob.num):
+                P[i][j] = prob.Y[i] * prob.Y[j] * prob.xkernel(x[i], x[j])
+        q = -np.ones((prob.num, 1))
+        G1 = -np.eye(prob.num)
+        G2 = np.eye(prob.num)
         G = np.vstack((G1, G2))
-        G = matrix(G, tc='d')
-        h1 = np.zeros(NUM).reshape(-1,1)
-        h2 = np.repeat(C, NUM).reshape(-1,1)
+        h1 = np.zeros(prob.num).reshape(-1, 1)
+        h2 = np.repeat(prob.C, prob.num).reshape(-1, 1)
         h = np.vstack((h1, h2))
+        a = prob.Y.reshape(1, -1)
+        b = np.zeros(1)
+
+        P = matrix(P, tc='d')
+        q = matrix(q, tc='d')
+        G = matrix(G, tc='d')
         h = matrix(h, tc='d')
-        A = matrix(y.reshape(1, -1), tc='d')
-        b = matrix(np.zeros(1), tc='d')
+        A = matrix(a, tc='d')
+        b = matrix(b, tc='d')
+
+        # Solve optimization problem using CVXOPT
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
         alphas = np.array(sol['x'])
-        w = np.sum(alphas * y[:, None] * x, axis = 0)
+
+        # Get the bias
         bacond1 = (alphas > 1e-8)
-        bacond2 = (alphas <= (C))
+        bacond2 = (alphas <= prob.C)
         bcond = np.array([a and b for a, b in zip(bacond1, bacond2)]).flatten()
-        yS = y[bcond]
+        yS = prob.Y[bcond]
         xS = x[bcond]
         aS = alphas[bcond]
-        sumTotal = 0
+        sum_total = 0
         for s in range(len(yS)):
-            innerTotal = 0
+            inner_total = 0
             for m in range(len(yS)):
                 am = aS[m]
                 ym = yS[m]
                 xm_xs = prob.xkernel(xS[m], xS[s])
-                innerTotal += am*ym*xm_xs
-            sumTotal += yS[s] - innerTotal
-        bias = sumTotal/len(yS) if len(yS) > 0 else [0]
-        clf = classifier()
-        clf.w = w
+                inner_total += am * ym * xm_xs
+            sum_total += yS[s] - inner_total
+        bias = sum_total / len(yS) if len(yS) > 0 else [0]
+
+        # Populate Classifier object to be returned
+        clf = Classifier()
         clf.b = bias[0]
         clf.alphas = alphas
         clf.xs = x
-        clf.ys = y
+        clf.ys = prob.Y
         clf.kern = prob.xkernel
         clf.support_vectors = x[bacond1.flatten()]
         return clf
 
-class SVMp():
-    def get_name(self):
+
+class SVMp:
+    """
+    SVM+ implementation.
+
+    Optimization problem solved using CVXOPT.
+
+    Attributes
+    ----------
+    prob : SvmProblem
+        The training examples and hyper-params for which we are training the model to
+    alphas : numpy.array
+        Learned Lagrange multiplier for each training data-point
+    deltas : numpy.array
+        Learned for each trained data-point. Represents Beta - C
+
+    """
+    def __init__(self):
+        self.prob = None
+        self.alphas = None
+        self.deltas = None
+
+    @staticmethod
+    def get_name():
+        """
+        Return name of training model.
+
+        Returns
+        -------
+        String
+            The name of the training model
+
+        """
         return "SVM+"
-    def train(self, prob : svm_problem):
+
+    def train(self, prob: SvmProblem):
+        """
+        Train the model with a given set of training data.
+
+        Parameters
+        ----------
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        Returns
+        -------
+        Classifier
+            Classifier object trained by this training model
+
+        """
+        # Define variables
         self.prob = prob
-        self.C = self.prob.C
+        C = self.prob.C
+        gamma = self.prob.gamma
 
-        self.L = self.prob.num
-
-        self.x = self.prob.X
-        self.xStar = self.prob.Xstar
-        self.y = self.prob.Y
-
-        self.gamma = self.prob.gamma
-
-        P1 = (self.prob.xi_xj * self.prob.yi_yj) + self.gamma*(self.prob.xstari_xstarj)
-        P2 = self.gamma*(self.prob.xstari_xstarj)
+        # Define the inputs to CVXOPT - See Appendix G.2
+        P1 = (self.prob.xi_xj * self.prob.yi_yj) + gamma * self.prob.xstari_xstarj
+        P2 = gamma * self.prob.xstari_xstarj
         P11 = np.hstack((P1, P2))
         P22 = np.hstack((P2, P2))
         P = np.vstack((P11, P22))
-
-        q = np.hstack((np.repeat(-1, self.L),np.zeros(self.L)))
-
-        positiveEye = np.eye(self.L, dtype='d')
-        negativeEye = -np.eye(self.L, dtype='d')
-        zeros = np.zeros((self.L, self.L))
-        g1 = np.hstack((negativeEye, zeros))
-        g2 = np.hstack((zeros, negativeEye))
-
-        G = np.vstack((g1,g2))
-
-        h1 = np.zeros(((self.L),1))
-        h2 = np.repeat(self.C, (self.L)).reshape(-1,1)
+        q = np.hstack((np.repeat(-1, self.prob.num), np.zeros(self.prob.num)))
+        negative_eye = -np.eye(self.prob.num, dtype='d')
+        zeros = np.zeros((self.prob.num, self.prob.num))
+        g1 = np.hstack((negative_eye, zeros))
+        g2 = np.hstack((zeros, negative_eye))
+        G = np.vstack((g1, g2))
+        h1 = np.zeros((self.prob.num, 1))
+        h2 = np.repeat(C, self.prob.num).reshape(-1, 1)
         h = np.vstack((h1, h2))
-
-        A1 = np.repeat(-1, 2*self.L)
-        A2 = np.hstack((self.y, np.zeros(self.L)))
+        A1 = np.hstack((self.prob.Y, np.zeros(self.prob.num)))
+        A2 = np.repeat(-1, 2 * self.prob.num)
         A = np.vstack((A1, A2))
-
         b = np.zeros(2)
-        b = b.reshape(-1,1)
+        b = b.reshape(-1, 1)
 
         P = matrix(P, tc='d')
         q = matrix(q, tc='d')
@@ -110,602 +182,770 @@ class SVMp():
         A = matrix(A, tc='d')
         b = matrix(b, tc='d')
 
+        # Solve optimization problem using CVXOPT
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
-        alphasAndDeltas = np.array(sol['x'])
-        self.alphas = np.asarray(alphasAndDeltas[:self.L])
-        self.deltas = alphasAndDeltas[self.L:]
+        alphas_deltas = np.array(sol['x'])
+        self.alphas = np.asarray(alphas_deltas[:self.prob.num])
+        self.deltas = alphas_deltas[self.prob.num:]
 
-        self.w = np.sum(self.alphas * self.y[:, None] * self.x, axis = 0)
-        self.wStar = (1/self.gamma)*np.sum((self.alphas + self.deltas) * self.prob.Xstar, axis = 0)
-
-        bacond = (self.alphas > 1e-5)
-        bdcond = (self.deltas + self.C > 1e-5)
-
-        bcond = np.array([a and b for a, b in zip(bacond, bdcond)]).flatten()
-
-        clf = classifier()
-        clf.w = self.w
+        # Populate Classifier object to be returned
+        clf = Classifier()
         clf.b = self.getB()
         clf.alphas = self.alphas
-        clf.xs = self.x
-        clf.ys = self.y
+        clf.xs = self.prob.X
+        clf.ys = self.prob.Y
         clf.kern = self.prob.xkernel
-        clf.support_vectors = self.x[(self.alphas > 1e-5).flatten()]
-        clf1 = classifier()
-        clf1.w = self.wStar
-        clf1.b = self.getBstar()
-        clf1.alphas = self.alphas
-        clf1.support_vectors = self.prob.Xstar[bcond]
-        return clf #, clf1 # Sort of useful for visualising what's going on in X*
+        return clf
 
+    @property
     def nPos(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == 1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+        """
+        Get the number of positive support vectors
 
+        Returns
+        -------
+        int
+            The number of positive support vectors
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == 1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
+
+    @property
     def nNeg(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == -1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+        """
+        Get the number of negative support vectors
+
+        Returns
+        -------
+        int
+            The number of negative support vectors
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == -1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
 
     def getB(self):
-        return ((self.bPlusbStar()/self.nPos())+(self.bMinusbStar()/self.nNeg()))/2
+        """
+        Calculates the bias
 
-    def getBstar(self):
-        return ((self.bPlusbStar()/self.nPos())-(self.bMinusbStar()/self.nNeg()))/2
+        Returns
+        -------
+        float
+            The bias for the classifier
+
+        """
+        return ((self.bPlusbStar() / self.nPos) + (self.bMinusbStar / self.nNeg)) / 2
 
     def bPlusbStar(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == 1:
+        """
+        Calculates the value of b + b* - See equations 4.5 and 4.6
+
+        Returns
+        -------
+        float
+            The average summed value of the biases in X and X*
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == 1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                    ayxx += self.alphas[j] * self.prob.Y[j] * self.prob.xkernel(self.prob.X[i], self.prob.X[j])
                 abcxx = 0
                 for j in range(self.prob.num):
-                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
-                abcxx = (1/self.prob.gamma)*abcxx
-                runningTotal += 1 - abcxx - ayxx
-        return runningTotal
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.prob.X[i], self.prob.X[j])
+                abcxx *= (1 / self.prob.gamma)
+                running_total += 1 - abcxx - ayxx
+        return running_total
 
-
+    @property
     def bMinusbStar(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == -1:
+        """
+        Calculates the value of b - b* - See equations 4.5 and 4.6
+
+        Returns
+        -------
+        float
+            The average difference of the value of the biases in X and X*
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == -1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                    ayxx += self.alphas[j] * self.prob.Y[j] * self.prob.xkernel(self.prob.X[i], self.prob.X[j])
                 abcxx = 0
                 for j in range(self.prob.num):
-                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
-                abcxx = (1/self.prob.gamma)*abcxx
-                runningTotal += -1 + abcxx - ayxx
-        return runningTotal
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.prob.X[i], self.prob.X[j])
+                abcxx *= (1 / self.prob.gamma)
+                running_total += -1 + abcxx - ayxx
+        return running_total
 
-class SVMdp_simp():
-    def get_name(self):
+
+class SVMdpSimp:
+    """
+    SVM delta+: Simplified Approach implementation.
+
+    Optimization problem solved using CVXOPT.
+
+    """
+
+    @staticmethod
+    def get_name():
+        """
+        Return name of training model.
+
+        Returns
+        -------
+        String
+            The name of the training model
+
+        """
         return "SVMd+ - simplified approach"
-    def train(self, prob : svm_problem):
+
+    @staticmethod
+    def train(prob: SvmProblem):
+        """
+        Train the model with a given set of training data.
+
+        Parameters
+        ----------
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        Returns
+        -------
+        Classifier
+            Classifier object trained by this training model
+
+        """
+        # Define variables
         x = prob.X
-        xStar = prob.Xstar
         y = prob.Y
         C = prob.C
         C2 = prob.gamma
 
+        # Swap params, so SVM solves X* with correct params
         xk = prob.xkernel
-        xsk = prob.xSkernel
+        xsk = prob.xskernel
 
         prob.C = C2
         prob.xkernel = xsk
 
-
-        NUM = x.shape[0]
-        DIM = x.shape[1]
-
         svm = SVM()
-        xStar_clf = svm.train(xStar, prob)
+        xstar_clf = svm.train(prob.Xstar, prob)
 
-        xi_star_amended = np.zeros(prob.num)
+        # Get distance to decision boundary
+        xi_star = np.zeros(prob.num)
         for i in range(prob.num):
-            output = (1- prob.Y[i]*(xStar_clf.f(prob.Xstar[i])))
-            xi_star_amended[i] = max(0, output)
+            output = (1 - prob.Y[i] * (xstar_clf.f(prob.Xstar[i])))
+            xi_star[i] = max(0, output)
 
+        # Replace swapped out params so modified SVM solves X with correct params
         prob.C = C
         prob.xkernel = xk
 
-        Ky = prob.yi_yj
-        Kx = prob.xi_xj
-        K = Ky*Kx
-        P = matrix(K, tc='d')
-        q = matrix(-np.ones((NUM, 1)), tc='d')
-        G1 = -np.eye(NUM)
-        G2 = np.eye(NUM)
-        G3 = xi_star_amended.reshape(1,-1)
+        # Define the inputs to CVXOPT - See Appendix G.4
+        P = prob.yi_yj * prob.xi_xj
+        q = -np.ones((prob.num, 1))
+        G1 = -np.eye(prob.num)
+        G2 = np.eye(prob.num)
+        G3 = xi_star.reshape(1, -1)
         G = np.vstack((G1, G2))
         G = np.vstack((G, G3))
-        G = matrix(G, tc='d')
-        h1 = np.zeros(NUM).reshape(-1,1)
-        h2 = np.repeat((1+prob.delta)*C, NUM).reshape(-1,1)
-        h3 = sum(xi_star_amended)*C
+        h1 = np.zeros(prob.num).reshape(-1, 1)
+        h2 = np.repeat((1 + prob.delta) * C, prob.num).reshape(-1, 1)
+        h3 = sum(xi_star) * C
         h = np.vstack((h1, h2))
         h = np.vstack((h, h3))
+        A = y.reshape(1, -1)
+        b = np.zeros(1)
+
+        P = matrix(P, tc='d')
+        q = matrix(q, tc='d')
+        G = matrix(G, tc='d')
         h = matrix(h, tc='d')
-        A = matrix(y.reshape(1, -1), tc='d')
-        b = matrix(np.zeros(1), tc='d')
+        A = matrix(A, tc='d')
+        b = matrix(b, tc='d')
+
+        # Solve optimization problem using CVXOPT
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
         alphas = np.array(sol['x'])
-        w = np.sum(alphas * y[:, None] * x, axis = 0)
 
+        # Get the bias
         bacond1 = (alphas > 1e-8)
-        bacond2 = (alphas <= (1+prob.delta)*C)
+        bacond2 = (alphas <= (1 + prob.delta) * C)
         bcond = np.array([a and b for a, b in zip(bacond1, bacond2)]).flatten()
 
         yS = y[bcond]
         xS = x[bcond]
         aS = alphas[bcond]
 
-        sumTotal = 0
+        sum_total = 0
         for s in range(len(yS)):
-            innerTotal = 0
+            inner_total = 0
             for m in range(len(yS)):
                 am = aS[m]
                 ym = yS[m]
                 xm_xs = prob.xkernel(xS[m], xS[s])
-                innerTotal += am*ym*xm_xs
-            sumTotal += yS[s] - innerTotal
+                inner_total += am * ym * xm_xs
+            sum_total += yS[s] - inner_total
 
-        bias = sumTotal/len(yS)
+        bias = sum_total / len(yS)
 
-        clf = classifier()
-        clf.w = w
+        # Populate Classifier object to be returned
+        clf = Classifier()
         clf.b = bias
         clf.alphas = alphas
         clf.xs = x
         clf.ys = y
         clf.kern = prob.xkernel
-        clf.support_vectors = prob.X[bacond1.flatten()]
         return clf
 
-class SVMdp():
-    def get_name(self):
+
+class SVMdp:
+    """
+    SVM delta+ implementation.
+
+    Optimization problem solved using CVXOPT.
+
+    Attributes
+    ----------
+    prob : SvmProblem
+        The training examples and hyper-params for which we are training the model to
+    alphas : numpy.array
+        Learned Lagrange multiplier for each training data-point
+    deltas : numpy.array
+        Learned for each trained data-point. Represents Beta - C
+
+    """
+    def __init__(self):
+        self.prob = None
+        self.alphas = None
+        self.deltas = None
+
+    @staticmethod
+    def get_name():
+        """
+        Return name of training model.
+
+        Returns
+        -------
+        String
+            The name of the training model
+
+        """
         return "SVMd+"
-    def train(self, prob : svm_problem):
+
+    def train(self, prob: SvmProblem):
+        """
+        Train the model with a given set of training data.
+
+        Parameters
+        ----------
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        Returns
+        -------
+        Classifier
+            Classifier object trained by this training model
+
+        """
+        # Define variables
         self.prob = prob
-        #self.kernel = self.prob.kernel
-        self.C = self.prob.C
-
-        self.L = self.prob.num
-        self.M = self.prob.dimensions
-
-        self.x = self.prob.X
-        self.y = self.prob.Y
-
-        self.gamma = self.prob.gamma
-        self.delta = self.prob.delta
-
-        C = prob.C
-
-        L = prob.num
-        M = prob.dimensions
-
         x = prob.X
         y = prob.Y
 
-        H11 = (prob.xi_xj * prob.yi_yj) + self.gamma*(prob.xstari_xstarj * prob.yi_yj)
-        H12 = self.gamma*(prob.xstari_xstarj * prob.yi_yj)
-        H1 = np.hstack((H11, H12))
-        H2 = np.hstack((H12, H12))
-        H = np.vstack((H1, H2))
+        # Define the inputs to CVXOPT - See Appendix G.3
+        P11 = (prob.xi_xj * prob.yi_yj) + prob.gamma * (prob.xstari_xstarj * prob.yi_yj)
+        P12 = prob.gamma * (prob.xstari_xstarj * prob.yi_yj)
+        P1 = np.hstack((P11, P12))
+        P2 = np.hstack((P12, P12))
+        P = np.vstack((P1, P2))
+        q = np.hstack((np.repeat(-1, prob.num), np.zeros(prob.num)))
+        positive_eye = np.eye(prob.num, dtype='d')
+        negative_eye = -np.eye(prob.num, dtype='d')
+        zeros = np.zeros((prob.num, prob.num))
+        g1 = np.hstack((negative_eye, zeros))
+        g2 = np.hstack((positive_eye, positive_eye))
+        g3 = np.hstack((zeros, negative_eye))
+        G = np.vstack((g1, g2))
+        G = np.vstack((G, g3))
+        h1 = np.zeros((prob.num, 1))
+        h2 = np.repeat((prob.delta * prob.C), prob.num).reshape(-1, 1)
+        h3 = np.repeat(prob.C, prob.num).reshape(-1, 1)
+        h = np.vstack((h1, h2))
+        h = np.vstack((h, h3))
+        A1 = np.hstack((prob.Y, np.zeros(prob.num)))
+        A2 = np.hstack((-prob.Y, -prob.Y))
+        A = np.vstack((A1, A2))
+        b = np.zeros(2)
+        b = b.reshape(-1, 1)
 
-        f = np.hstack((np.repeat(-1, L),np.zeros(L)))
-
-        positiveEye = np.eye(L, dtype='d')
-        negativeEye = -np.eye(L, dtype='d')
-        zeros = np.zeros((L, L))
-        g1 = np.hstack((zeros, negativeEye))
-        g2 = np.hstack((negativeEye, zeros))
-        g3 = np.hstack((positiveEye, positiveEye))
-
-        G = np.vstack((g1,g2))
-        G = np.vstack((G,g3))
-
-        h1 = np.repeat(C, (L)).reshape(-1,1)
-        h2 = np.zeros(((L),1))
-        h2 = np.vstack((h1, h2))
-        h3 = np.repeat((self.delta*C), L).reshape(-1,1)
-        h = np.vstack((h2, h3))
-
-        Aeq1 = np.hstack((prob.Y, np.zeros(L)))
-        Aeq2 = np.hstack((-prob.Y, -prob.Y))
-        Aeq = np.vstack((Aeq1, Aeq2))
-
-        beq = np.zeros(2)
-        beq = beq.reshape(-1,1)
-
-        P = matrix(H, tc='d')
-        q = matrix(f, tc='d')
+        P = matrix(P, tc='d')
+        q = matrix(q, tc='d')
         G = matrix(G, tc='d')
         h = matrix(h, tc='d')
-        A = matrix(Aeq, tc='d')
-        b = matrix(beq, tc='d')
+        A = matrix(A, tc='d')
+        b = matrix(b, tc='d')
 
+        # Solve optimization problem using CVXOPT
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
-        alphasAndDeltas = np.array(sol['x'])
-        self.alphas = np.asarray(alphasAndDeltas[:L])
-        self.deltas = alphasAndDeltas[L:]
+        alphas_and_deltas = np.array(sol['x'])
+        self.alphas = np.asarray(alphas_and_deltas[:prob.num])
+        self.deltas = alphas_and_deltas[prob.num:]
 
-        self.w = np.sum(self.alphas * self.y[:, None] * self.x, axis = 0)
-        self.wStar = (1/self.gamma)*np.sum((self.alphas + self.deltas) * self.y[:, None] * self.prob.Xstar, axis = 0)
-
-        bacond = (self.alphas > 1e-5)
-        bdcond = (self.deltas + self.C > 1e-5)
-
-        bcond = np.array([a and b for a, b in zip(bacond, bdcond)]).flatten()
-
-        clf = classifier()
-        clf.w = self.w
-        self.b = self.getB()
-        clf.b = self.b
+        # Populate Classifier object to be returned
+        clf = Classifier()
+        clf.b = self.get_b
         clf.alphas = self.alphas
         clf.xs = x
         clf.ys = y
         clf.kern = prob.xkernel
-        clf.support_vectors = self.x[bacond.flatten()]
+        return clf
 
-        priv_clf = classifier()
-        priv_clf.w = self.wStar
-        priv_clf.b = self.getBstar()
-        priv_clf.support_vectors = self.prob.Xstar[np.array(bacond).flatten()]
-        return clf #, priv_clf # Uncomment to get "priv classifier" - useful for understanding in 2d world, else useless
+    @property
+    def s_pos(self):
+        """
+        Get the sum of [1 - <w,X>] for positive support vectors
 
-    def sPos(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == 1:
-                #runningTotal += 1-np.dot(self.w, self.prob.X[i])
+        Returns
+        -------
+        int
+            The sum of [1 - <w,X>] for positive support vectors
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == 1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
-                runningTotal += 1 - ayxx
-        return runningTotal
+                    ayxx += self.alphas[j] * self.prob.Y[j] * self.prob.xkernel(self.prob.X[j], self.prob.X[i])
+                running_total += 1 - ayxx
+        return running_total
 
-    def sNeg(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == -1:
-                #runningTotal += -1 - np.dot(self.w, self.prob.X[i])
+    @property
+    def s_neg(self):
+        """
+        Get the sum of [-1 - <w,X>] for negative support vectors
+
+        Returns
+        -------
+        int
+            The sum of [-1 - <w,X>] for negative support vectors
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == -1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
-                runningTotal += -1 - ayxx
-        return runningTotal
+                    ayxx += self.alphas[j] * self.prob.Y[j] * self.prob.xkernel(self.prob.X[j], self.prob.X[i])
+                running_total += -1 - ayxx
+        return running_total
 
-    def nPos(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == 1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+    @property
+    def n_pos(self):
+        """
+        Get the number of positive support vectors
 
-    def nNeg(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == -1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+        Returns
+        -------
+        int
+            The number of positive support vectors
 
-    def getB(self):
-        return ((self.sPos()/self.nPos())+(self.sNeg()/self.nNeg()))/2
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == 1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
 
-    def q(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.deltas[i] + self.C > 1e-5:
-                runningTotal += np.dot(self.w, self.prob.X[i])/2 - np.dot(self.wStar, self.prob.Xstar[i])
-        return runningTotal
+    @property
+    def n_neg(self):
+        """
+        Get the number of negative support vectors
 
-    def getBstar(self):
-        return self.q() / self.L
+        Returns
+        -------
+        int
+            The number of negative support vectors
 
-class SVMu():
-    def get_name(self):
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == -1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
+
+    @property
+    def get_b(self):
+        """
+        Calculates the bias
+
+        Returns
+        -------
+        float
+            The bias for the classifier
+
+        """
+        return ((self.s_pos / self.n_pos) + (self.s_neg / self.n_neg)) / 2
+
+
+class SVMu:
+    """
+    SVM+ implementation.
+
+    Optimization problem solved using CVXOPT.
+
+    Attributes
+    ----------
+    prob : SvmProblem
+        The training examples and hyper-params for which we are training the model to
+    alphas : numpy.array
+        Learned Lagrange multiplier for each training data-point
+    etas : nupmy.array
+        Learned Lagrange multiplier for each training data-point
+    deltas : numpy.array
+        Learned for each trained data-point. Represents Lagrange multiplier Beta - C
+    epsilons : numpy.array
+        Learned for each trained data-point. Represents Lagrange multiplier Mu - C
+
+    """
+    def __init__(self):
+        self.prob = None
+        self.alphas = None
+        self.etas = None
+        self.deltas = None
+        self.epsilons = None
+
+    @staticmethod
+    def get_name():
+        """
+        Return name of training model.
+
+        Returns
+        -------
+        String
+            The name of the training model
+
+        """
         return "SVM Idea"
-    def train(self, prob : svm_problem):
+
+    def train(self, prob: SvmUProblem):
+        """
+        Train the model with a given set of training data.
+
+        Parameters
+        ----------
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        Returns
+        -------
+        Classifier
+            Classifier object trained by this training model
+
+        """
+        # Define variables
         self.prob = prob
-        self.C = self.prob.C
+        x = self.prob.X
+        y = self.prob.Y
 
-        self.L = self.prob.num
-        self.M = self.prob.dimensions
+        # Define the inputs to CVXOPT - See Appendix G.6
+        P_a = prob.yi_yj * prob.xi_xj
+        P_b = prob.gamma * prob.xstari_xstarj
+        P_c = prob.sigma * prob.yi_yj * prob.xstarstari_xstarstarj
 
-        self.x = self.prob.X
-        self.xS = self.prob.Xstar
-        self.xSS = self.prob.XstarStar
-        self.y = self.prob.Y
+        P_row_0 = np.hstack((P_a + P_b, P_a))
+        P_row_0 = np.hstack((P_row_0, P_b))
+        P_row_0 = np.hstack((P_row_0, np.zeros((prob.num, prob.num))))
+        P_row_1 = np.hstack((P_a, P_a + P_c))
+        P_row_1 = np.hstack((P_row_1, np.zeros((prob.num, prob.num))))
+        P_row_1 = np.hstack((P_row_1, P_c))
+        P_row_2 = np.hstack((P_b, np.zeros((prob.num, prob.num))))
+        P_row_2 = np.hstack((P_row_2, P_b))
+        P_row_2 = np.hstack((P_row_2, np.zeros((prob.num, prob.num))))
+        P_row_3 = np.hstack((np.zeros((prob.num, prob.num)), P_c))
+        P_row_3 = np.hstack((P_row_3, np.zeros((prob.num, prob.num))))
+        P_row_3 = np.hstack((P_row_3, P_c))
 
-        self.gamma = self.prob.gamma
-        self.sigma = self.prob.sigma
-        self.delta = self.prob.delta
+        P = np.vstack((P_row_0, P_row_1))
+        P = np.vstack((P, P_row_2))
+        P = np.vstack((P, P_row_3))
 
-        C = self.C
+        q = np.hstack((np.repeat(-1, prob.num), np.repeat(-1, prob.num)))
+        q = np.hstack((q, np.zeros(prob.num)))
+        q = np.hstack((q, np.zeros(prob.num)))
 
-        L = self.L
-        M = self.M
-
-        x = self.x
-        y = self.y
-
-
-        ha = (prob.yi_yj*prob.xi_xj)
-        hb = self.gamma*prob.xstari_xstarj
-        hc = self.sigma*prob.xstarstari_xstarstarj
-
-        h00 = ha+hb
-        h01 = ha
-        h02 = hb
-        h03 = np.zeros((L,L))
-        h10 = ha
-        h11 = ha+hc
-        h12 = np.zeros((L,L))
-        h13 = hc
-        h20 = hb
-        h21 = np.zeros((L,L))
-        h22 = hb
-        h23 = np.zeros((L,L))
-        h30 = np.zeros((L,L))
-        h31 = hc
-        h32 = np.zeros((L,L))
-        h33 = hc
-
-        h1strow = np.hstack((h00, h01))
-        h1strow = np.hstack((h1strow, h02))
-        h1strow = np.hstack((h1strow, h03))
-        h2ndrow = np.hstack((h10, h11))
-        h2ndrow = np.hstack((h2ndrow, h12))
-        h2ndrow = np.hstack((h2ndrow, h13))
-        h3rdrow = np.hstack((h20, h21))
-        h3rdrow = np.hstack((h3rdrow, h22))
-        h3rdrow = np.hstack((h3rdrow, h23))
-        h4throw = np.hstack((h30, h31))
-        h4throw = np.hstack((h4throw, h32))
-        h4throw = np.hstack((h4throw, h33))
-
-        H = np.vstack((h1strow, h2ndrow))
-        H = np.vstack((H, h3rdrow))
-        H = np.vstack((H, h4throw))
-
-        f = np.hstack((np.repeat(-1, L), np.repeat(-1, L)))
-        f = np.hstack((f,np.zeros(L)))
-        f = np.hstack((f, np.zeros(L)))
-
-
-        positiveEye = np.eye(L, dtype='d')
-        negativeEye = -np.eye(L, dtype='d')
-        zeros = np.zeros((L, L))
+        positive_eye = np.eye(prob.num, dtype='d')
+        negative_eye = -np.eye(prob.num, dtype='d')
+        zeros = np.zeros((prob.num, prob.num))
 
         # g1 = -a <= 0
-        g1 = np.hstack((negativeEye, zeros))
+        g1 = np.hstack((negative_eye, zeros))
         g1 = np.hstack((g1, zeros))
         g1 = np.hstack((g1, zeros))
 
-        # g2 = -d <= C
-        g2 = np.hstack((zeros, zeros))
-        g2 = np.hstack((g2, negativeEye))
+        # g2 = -n <= 0
+        g2 = np.hstack((zeros, negative_eye))
+        g2 = np.hstack((g2, zeros))
         g2 = np.hstack((g2, zeros))
 
-        # g3 = -n <= 0
-        g3 = np.hstack((zeros, negativeEye))
-        g3 = np.hstack((g3, zeros))
+        # g3 = -d <= C
+        g3 = np.hstack((zeros, zeros))
+        g3 = np.hstack((g3, negative_eye))
         g3 = np.hstack((g3, zeros))
 
         # g4 = n + e <= Del C
-        g4 = np.hstack((zeros, positiveEye))
+        g4 = np.hstack((zeros, positive_eye))
         g4 = np.hstack((g4, zeros))
-        g4 = np.hstack((g4, positiveEye))
+        g4 = np.hstack((g4, positive_eye))
 
-        # g5 = -e <= c
+        # g5 = -e <= C
         g5 = np.hstack((zeros, zeros))
         g5 = np.hstack((g5, zeros))
-        g5 = np.hstack((g5, negativeEye))
+        g5 = np.hstack((g5, negative_eye))
 
-        G = np.vstack((g1,g2))
-        G = np.vstack((G,g3))
+        G = np.vstack((g1, g2))
+        G = np.vstack((G, g3))
         G = np.vstack((G, g4))
         G = np.vstack((G, g5))
 
-        h1 = np.zeros(((L),1))
-        h2 = np.repeat(C, (L)).reshape(-1,1)
-        h3 = np.zeros(((L),1))
-        h4 = np.repeat((self.delta*C), L).reshape(-1,1)
-        h5 = np.repeat(C, (L)).reshape(-1,1)
+        h1 = np.zeros((prob.num, 1))
+        h2 = np.zeros((prob.num, 1))
+        h3 = np.repeat(prob.C, prob.num).reshape(-1, 1)
+        h4 = np.repeat((prob.delta * prob.C), prob.num).reshape(-1, 1)
+        h5 = np.repeat(prob.C, prob.num).reshape(-1, 1)
         h = np.vstack((h1, h2))
         h = np.vstack((h, h3))
         h = np.vstack((h, h4))
         h = np.vstack((h, h5))
 
-        Aeq1 = np.hstack((prob.Y, -prob.Y))
-        Aeq1 = np.hstack((Aeq1, np.zeros(2*L)))
-        Aeq2 = np.hstack((-np.ones(L), np.zeros(L)))
-        Aeq2 = np.hstack((Aeq2, -np.ones(L)))
-        Aeq2 = np.hstack((Aeq2, np.zeros(L)))
-        Aeq3 = np.hstack((np.zeros(L), -prob.Y))
-        Aeq3 = np.hstack((Aeq3, np.zeros(L)))
-        Aeq3 = np.hstack((Aeq3, -prob.Y))
+        A1 = np.hstack((prob.Y, -prob.Y))
+        A1 = np.hstack((A1, np.zeros(2 * prob.num)))
+        A2 = np.hstack((-np.ones(prob.num), np.zeros(prob.num)))
+        A2 = np.hstack((A2, -np.ones(prob.num)))
+        A2 = np.hstack((A2, np.zeros(prob.num)))
+        A3 = np.hstack((np.zeros(prob.num), -prob.Y))
+        A3 = np.hstack((A3, np.zeros(prob.num)))
+        A3 = np.hstack((A3, -prob.Y))
 
-        Aeq = np.vstack((Aeq1, Aeq2))
-        Aeq = np.vstack((Aeq, Aeq3))
+        A = np.vstack((A1, A2))
+        A = np.vstack((A, A3))
 
+        b = np.zeros(3)
+        b = b.reshape(-1, 1)
 
-        beq = np.zeros(3)
-        beq = beq.reshape(-1,1)
-
-        P = matrix(H, tc='d')
-        q = matrix(f, tc='d')
+        P = matrix(P, tc='d')
+        q = matrix(q, tc='d')
         G = matrix(G, tc='d')
         h = matrix(h, tc='d')
-        A = matrix(Aeq, tc='d')
-        b = matrix(beq, tc='d')
+        A = matrix(A, tc='d')
+        b = matrix(b, tc='d')
 
+        # Solve optimization problem using CVXOPT
         solvers.options['show_progress'] = False
         sol = solvers.qp(P, q, G, h, A, b)
-        alphasEtasDeltasEpsilons = np.array(sol['x'])
-        self.alphas = alphasEtasDeltasEpsilons[:L]
-        self.etas = alphasEtasDeltasEpsilons[L:(2*L)]
-        self.deltas = alphasEtasDeltasEpsilons[(2*L):(3*L)]
-        self.epsilons = alphasEtasDeltasEpsilons[-L:]
+        alphas_etas_deltas_epsilons = np.array(sol['x'])
+        self.alphas = alphas_etas_deltas_epsilons[:prob.num]
+        self.etas = alphas_etas_deltas_epsilons[prob.num:(2 * prob.num)]
+        self.deltas = alphas_etas_deltas_epsilons[(2 * prob.num):(3 * prob.num)]
+        self.epsilons = alphas_etas_deltas_epsilons[-prob.num:]
 
-        self.w = np.sum((self.alphas+self.etas) * self.y[:, None] * self.x, axis = 0)
-        self.wStar = (1/self.gamma)*np.sum((self.alphas + self.deltas) * self.y[:, None] * self.prob.Xstar, axis = 0)
-
-        bacond = (self.alphas > 1e-5)
-        bdcond = (self.deltas + self.C > 1e-5)
-
-        bcond = np.array([a and b for a, b in zip(bacond, bdcond)]).flatten()
-
-        clf = classifier()
-        clf.w = self.w
-        self.b = self.getB()
-        clf.b = self.b
-        clf.alphas = np.asarray(self.alphas+self.etas)
+        # Populate Classifier object to be returned
+        clf = Classifier()
+        clf.b = self.get_b
+        clf.alphas = np.asarray(self.alphas + self.etas)
         clf.xs = x
         clf.ys = y
         clf.kern = prob.xkernel
-        clf.support_vectors = self.x[bacond.flatten()]
-        #clf.scaler = prob.scaler
+        return clf
 
-        priv_clf = classifier()
-        priv_clf.w = self.wStar
-        priv_clf.b = self.getBstar()
-        priv_clf.support_vectors = self.prob.Xstar[np.array(bacond).flatten()]
-        return clf #, priv_clf
+    @property
+    def n_pos(self):
+        """
+        Get the number of positive support vectors
 
-    def F(self, i):
-        runningTotal = 0
-        for j in range(self.L):
-            runningTotal += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[i], self.x[j])
-        return runningTotal[0]
+        Returns
+        -------
+        int
+            The number of positive support vectors
 
-    def f(self, i):
-        runningTotal = 0
-        for j in range(self.L):
-            runningTotal += (self.alphas[j] + self.deltas[j]) * self.prob.xSkernel(self.xStar[i], self.xStar[j])
-            if (self.alphas[j] + self.deltas[j] > -1e-5) and (self.alphas[j] + self.deltas[j] < 1e-5):
-                print("This makes a < C ",j)
-        return runningTotal[0]
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == 1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
 
-    def sPos(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == 1:
-                runningTotal += 1-np.dot(self.w, self.prob.X[i])
-        return runningTotal
+    @property
+    def n_neg(self):
+        """
+        Get the number of negative support vectors
 
-    def sNeg(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == -1:
-                runningTotal += -1 - np.dot(self.w, self.prob.X[i])
-        return runningTotal
+        Returns
+        -------
+        int
+            The number of negative support vectors
 
-    def nPos(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == 1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 > self.prob.C - self.deltas[i] and self.prob.Y[i] == -1:
+                running_total += 1
+        return running_total if running_total > 0 else 1
 
-    def nNeg(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.deltas[i] -self.C < 1e-5 and self.y[i] == -1:
-                runningTotal += 1
-        return runningTotal if runningTotal > 0 else 1
+    @property
+    def get_b(self):
+        """
+        Calculates the bias - using method from SVM+
 
-    def getB(self):
-        return ((self.bPlusbStar()/self.nPos())+(self.bMinusbStar()/self.nNeg()))/2
+        Returns
+        -------
+        float
+            The bias for the classifier
 
-    def getBstar(self):
-        return ((self.bPlusbStar()/self.nPos())-(self.bMinusbStar()/self.nNeg()))/2
+        """
+        return ((self.b_plus_bstar / self.n_pos) + (self.b_minus_bstar / self.n_neg)) / 2
 
-    def bPlusbStar(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == 1:
-                #runningTotal += 1 - np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+    @property
+    def b_plus_bstar(self):
+        """
+        Calculates the value of b + b* - See equations 4.5 and 4.6
+
+        Returns
+        -------
+        float
+            The average summed value of the biases in X and X*
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == 1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                    ayxx += (self.alphas[j] + self.etas[j]) * self.prob.Y[j] * self.prob.xkernel(self.prob.X[j],
+                                                                                                 self.prob.X[i])
                 abcxx = 0
                 for j in range(self.prob.num):
-                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
-                abcxx = (1/self.prob.gamma)*abcxx
-                runningTotal += 1 - abcxx - ayxx
-        return runningTotal
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.prob.X[j], self.prob.X[i])
+                abcxx *= (1 / self.prob.gamma)
+                running_total += 1 - abcxx - ayxx
+        return running_total
 
-    def bMinusbStar(self):
-        runningTotal = 0
-        for i in range(self.L):
-            if self.alphas[i] > 1e-5 and self.y[i] == -1:
-                #runningTotal += -1 + np.dot(self.wStar, self.xS[i]) - np.dot(self.w, self.x[i])
+    @property
+    def b_minus_bstar(self):
+        """
+        Calculates the value of b - b* - See equations 4.5 and 4.6
+
+        Returns
+        -------
+        float
+            The average difference of the value of the biases in X and X*
+
+        """
+        running_total = 0
+        for i in range(self.prob.num):
+            if self.alphas[i] > 1e-5 and self.prob.Y[i] == -1:
                 ayxx = 0
                 for j in range(self.prob.num):
-                    ayxx += self.alphas[j] * self.y[j] * self.prob.xkernel(self.x[j], self.x[i])
+                    ayxx += (self.alphas[j] + self.etas[j]) * self.prob.Y[j] * self.prob.xkernel(self.prob.X[j],
+                                                                                                 self.prob.X[i])
                 abcxx = 0
                 for j in range(self.prob.num):
-                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.x[j], self.x[i])
-                abcxx = (1/self.prob.gamma)*abcxx
-                runningTotal += -1 + abcxx - ayxx
-        return runningTotal
+                    abcxx += (self.alphas[j] + self.deltas[j]) * self.prob.xkernel(self.prob.X[j], self.prob.X[i])
+                abcxx *= (1 / self.prob.gamma)
+                running_total += -1 + abcxx - ayxx
+        return running_total
 
-class KT():
-    def train(self, prob: svm_problem):
-        self.x = prob.X
-        self.y = prob.Y
-        self.C = prob.C
+
+class KT:
+    """
+    Naive implementation of Knowledge Transfer.
+
+    Naive due to lack of optimization and hyper-param tuning - particularly around the regression
+
+    Attributes
+    ----------
+    prob : SvmProblem
+        The training examples and hyper-params for which we are training the model to
+    models : [sklearn.svm.SVR]
+        List of regression models
+    clf : SVMdp
+        Learned classifier
+
+    """
+    def __init__(self):
+        self.prob = None
+        self.models = None
+        self.clf = None
+
+    def train(self, prob: SvmProblem):
+        """
+        Train the model with a given set of training data.
+
+        Parameters
+        ----------
+        prob : SvmProblem
+            The problem on which to train the model. Contains hyper-param settings and all training data.
+
+        """
+        # Define variables
         self.prob = prob
-        self.xkern = prob.xkernel
+        c = prob.C
+        c2 = prob.gamma
+        xkern = prob.xkernel
+        xsk = prob.xskernel
 
-        self.NUM = self.x.shape[0]
-
-        C2 = prob.gamma
-        xsk = prob.xSkernel
-
-        prob.C = C2
+        # Swap params, so SVM solves X* with correct params
+        prob.C = c2
         prob.xkernel = xsk
 
+        # Find SVM solution in X*
         svm = SVM()
         priv_clf = svm.train(prob.Xstar, prob)
 
-        prob.C = self.C
-        prob.xkernel = self.xkern
+        # Replace swapped out params so modified SVM solves X with correct params
+        prob.C = c
+        prob.xkernel = xkern
 
-        frames = np.zeros((prob.num,len(priv_clf.support_vectors)))
+        # Get the 'frames of knowledge' - Get the kernel distance from each
+        # privileged training data-point to the privileged support vectors
+        frames = np.zeros((prob.num, len(priv_clf.support_vectors)))
         for i in range(prob.num):
             for j in range(len(priv_clf.support_vectors)):
-                frames[i][j] = prob.xkernel((priv_clf.support_vectors[j]),prob.Xstar[i])
+                frames[i][j] = prob.xkernel((priv_clf.support_vectors[j]), prob.Xstar[i])
 
-        training_pairs = np.zeros((prob.num,len(priv_clf.support_vectors)), dtype=object)
+        # Form pairs so that each training point is matched against each 'frame of knowledge'
+        training_pairs = np.zeros((prob.num, len(priv_clf.support_vectors)), dtype=object)
         for i in range(prob.num):
             for j in range(len(priv_clf.support_vectors)):
                 training_pairs[i][j] = [prob.X[i], frames[i][j]]
         training_pairs = np.array(training_pairs)
 
-        regr_pairs = np.zeros((len(priv_clf.support_vectors),prob.num), dtype=object)
+        regr_pairs = np.zeros((len(priv_clf.support_vectors), prob.num), dtype=object)
         for i in range(prob.num):
             for j in range(len(priv_clf.support_vectors)):
                 regr_pairs[j][i] = training_pairs[i][j]
 
+        # Learn a regression based on above pairs
         self.models = []
-        self.polyFit = []
         for dataSet in regr_pairs:
-            self.regr = SVR(kernel='poly')
+            regr = SVR(kernel='rbf')
             xs = []
             ys = []
             for i in range(prob.num):
@@ -713,32 +953,56 @@ class KT():
                 ys.append(dataSet[i][1])
             xs = np.array(xs)
             ys = np.array(ys)
-            self.models.append(self.regr.fit(xs, ys))
+            self.models.append(regr.fit(xs, ys))
 
+        # Transform data from X using learned regression
         new_xs = []
         new_ys = []
         for i in range(prob.num):
-            new_xs.append(self.F(prob.X[i].reshape(1,-1)).flatten())
+            new_xs.append(self.transform(prob.X[i].reshape(1, -1)).flatten())
             new_ys.append(priv_clf.predict(prob.Xstar[i]))
-        new_x = np.array(new_xs)
+        new_x = np.asarray(new_xs)
         new_y = np.array(new_ys)
-        new_prob = svm_problem(new_x, prob.Xstar, new_y)
 
+        # Form a new problem and learn an SVMd+ solution for it
+        new_prob = SvmProblem(new_x, prob.Xstar, new_y)
         new_svm = SVMdp()
         self.clf = new_svm.train(new_prob)
-        self.support_vectors = self.clf.support_vectors
-        self.w = self.clf.w
-        self.b = self.clf.b
 
-    def F(self, x):
-        toReturn = []
+    def transform(self, x):
+        """
+        Transform a data-point using regression learned mapping X to 'frame of knowledge'
+
+        Parameters
+        ----------
+        x : numpy.array
+            Data-point to be transformed
+
+        Returns
+        -------
+        numpy.array
+            Data-point after transformation
+
+        """
+        to_return = []
         for i in range(len(self.models)):
-            #x_ = self.polyFit[i].transform(x)
-            toReturn.append(self.models[i].predict(x))
-        toReturn = np.array(toReturn)
-        return toReturn
+            to_return.append(self.models[i].predict(x))
+        return np.array(to_return)
 
     def predict(self, x):
-        new_x = np.array(self.F(x.reshape(1,-1)).flatten())
-        return self.clf.predict(new_x.T)
+        """
+        Transform a data-point to learned space, then classify.
 
+        Parameters
+        ----------
+        x : numpy.array
+            The data-point to predict the classification of
+
+        Returns
+        -------
+        int
+            1 for +ve class, else -1
+
+        """
+        new_x = np.array(self.transform(x.reshape(1, -1)).flatten())
+        return self.clf.predict(new_x.T)

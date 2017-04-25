@@ -1,151 +1,250 @@
 from Kernels import *
 import numpy as np
-from sklearn.preprocessing import RobustScaler as ss
 
-class svm_problem():
-    def __init__(self, X, Xstar, Y, c=1.0, gamma=1.0, delta=10.0, xk=Linear(), xSk=Linear()):
+
+class SvmProblem:
+    """
+    All information about a problem that can be solved by:-
+        - SVM
+        - SVM+
+        - SVMd+
+        - MT / SVMd+:simp
+        - KT
+
+    Attributes
+    ----------
+    C : float
+        The regularization parameter to use for this problem
+    gamma : float
+        Parameter controlling that priority between X and X* (if applicable)
+    delta : float
+        Parameter controlling the strictness of `classification' in X* (if applicable)
+    xkernel: Kernel
+        Kernel used in X
+    xskernel: Kernel
+        Kernel used in X* (if applicable)
+    sigma: float
+        Standard deviation in distance between datapoints in space where Gaussian kernel is applied
+    X : numpy.array
+        Non-privileged data-points
+    Xstar : numpy.array
+        Privileged data-points
+    Y : numpy.array
+        Class labels
+    num : int
+        Number of data-points
+    dimensions: int
+        Number of features in X
+    xi_xj : numpy.ndarray
+        K(x,x) Matrix of kernel distances between each data-point in X
+    xstari_xstarj : numpy.ndarray
+        K*(x*,x*) Matrix of kernel distances between each data-point in X*
+    yi_yj : numpy.array
+        Array of Yi * Yj
+
+    """
+    def __init__(self, x, xstar, y, c=1.0, gamma=1.0, delta=1000.0, xk=Linear(), xsk=Linear()):
         self.C = c
         self.gamma = gamma
         self.delta = delta
         self.xkernel = xk
-        self.xSkernel = xSk
+        self.xskernel = xsk
         self.sigma = -99
 
-        if(isinstance(X, np.ndarray)):
-            self.X = X
+        if isinstance(x, np.ndarray):
+            self.X = x
         else:
-            self.X = np.array(X)
-        if(isinstance(Xstar, np.ndarray)):
-            self.Xstar = Xstar
+            self.X = np.array(x)
+        if isinstance(xstar, np.ndarray):
+            self.Xstar = xstar
         else:
-            self.Xstar = np.array(Xstar)
-        if(isinstance(Y, np.ndarray)):
-            self.Y = Y
+            self.Xstar = np.array(xstar)
+        if isinstance(y, np.ndarray):
+            self.Y = y
             self.Y = np.asarray(self.Y).reshape(-1)
         else:
-            self.Y = np.array(Y)
+            self.Y = np.array(y)
             self.Y = np.asarray(self.Y).reshape(-1)
-
-        #self.X = np.divide(self.X, self.X.max())
-        #self.Xstar = np.divide(self.Xstar, self.Xstar.max())
-
 
         self.num = len(self.X)
         self.dimensions = len(self.X[0])
         self.xi_xj = self.gram_matrix(self.X, self.X, self.xkernel)
-        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xSkernel)
+        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xskernel)
         self.yi_yj = self.gram_matrix(self.Y, self.Y, Linear())
 
-    def gram_matrix(self, X1, X2, kern):
+    def gram_matrix(self, x1, x2, kern):
+        """
+        Return matrix comparing x1 to x2 using kern
+
+        Parameters
+        ----------
+        x1 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        x2 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        kern : Kernel
+            Kernel distance measure to use
+
+        Returns
+        -------
+        numpy.ndarray
+            Matrix of kernel distances between each pairing of inputs
+
+        """
         if isinstance(kern, Gaussian):
             if self.sigma == -99:
-                SQD = np.zeros((len(X1), len(X1)))
-                for i in range(len(X1)):
-                    for j in range(len(X1)):
-                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-                self.sigma = np.median(SQD)
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=self.sigma)
-            return K
+                sqd = np.zeros((len(x1), len(x1)))
+                for i in range(len(x1)):
+                    for j in range(len(x1)):
+                        sqd[i, j] = np.linalg.norm(x1[i] - x2[j])
+                self.sigma = np.median(sqd)
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j], sigma=self.sigma)
+            return k
         else:
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j])
-            return K
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j])
+            return k
 
-class svm_problem_tuple():
+
+class SvmProblemTuple:
+    """
+    All information about a problem that can be solved by:-
+        - SVM
+        - SVM+
+        - SVMd+
+        - MT / SVMd+:simp
+        - KT
+
+    Attributes
+    ----------
+    C : float
+        The regularization parameter to use for this problem
+    gamma : float
+        Parameter controlling that priority between X and X* (if applicable)
+    delta : float
+        Parameter controlling the strictness of `classification' in X* (if applicable)
+    xkernel: Kernel
+        Kernel used in X
+    xskernel: Kernel
+        Kernel used in X* (if applicable)
+    sigma: float
+        Standard deviation in distance between datapoints in space where Gaussian kernel is applied
+    X : numpy.array
+        Non-privileged data-points
+    Xstar : numpy.array
+        Privileged data-points
+    Y : numpy.array
+        Class labels
+    num : int
+        Number of data-points
+    dimensions: int
+        Number of features in X
+    xi_xj : numpy.ndarray
+        K(x,x) Matrix of kernel distances between each data-point in X
+    xstari_xstarj : numpy.ndarray
+        K*(x*,x*) Matrix of kernel distances between each data-point in X*
+    yi_yj : numpy.array
+        Array of Yi * Yj
+
+    """
     def __init__(self, prob_tuple):
         self.C = prob_tuple[5]
         self.sigma = -99
-        if len(prob_tuple) == 9: # SVM
+        if len(prob_tuple) == 9:  # SVM
             self.gamma = 1
             self.delta = 1
             self.xkernel = prob_tuple[6]
-            self.xSkernel = Linear()
-        elif len(prob_tuple) == 11: # SVM+
+            self.xskernel = Linear()
+        elif len(prob_tuple) == 11:  # SVM+
             self.gamma = prob_tuple[6]
             self.delta = 1
             self.xkernel = prob_tuple[7]
-            self.xSkernel = prob_tuple[8]
-        elif len(prob_tuple) == 12: # SVMd+ - sa
+            self.xskernel = prob_tuple[8]
+        elif len(prob_tuple) == 12:  # SVMd+ - sa
             self.gamma = prob_tuple[6]
             self.delta = prob_tuple[7]
             self.xkernel = prob_tuple[8]
-            self.xSkernel = prob_tuple[9]
-        elif len(prob_tuple) == 13: # SVMd+
+            self.xskernel = prob_tuple[9]
+        elif len(prob_tuple) == 13:  # SVMd+
             self.gamma = prob_tuple[7]
             self.delta = prob_tuple[6]
             self.xkernel = prob_tuple[8]
-            self.xSkernel = prob_tuple[9]
-        elif len(prob_tuple) == 15: # KT
+            self.xskernel = prob_tuple[9]
+        elif len(prob_tuple) == 15:  # KT
             self.gamma = prob_tuple[6]
-            self.delta = 1
+            self.delta = 1000
             self.xkernel = prob_tuple[7]
-            self.xSkernel = prob_tuple[8]
+            self.xskernel = prob_tuple[8]
         else:
             print("poorly formed problem")
 
-        if(isinstance(prob_tuple[0], np.ndarray)):
+        if isinstance(prob_tuple[0], np.ndarray):
             self.X = prob_tuple[0]
         else:
             self.X = np.array(prob_tuple[0])
-        if(isinstance(prob_tuple[1], np.ndarray)):
+        if isinstance(prob_tuple[1], np.ndarray):
             self.Xstar = prob_tuple[1]
         else:
             self.Xstar = np.array(prob_tuple[1])
-        if(isinstance(prob_tuple[2], np.ndarray)):
+        if isinstance(prob_tuple[2], np.ndarray):
             self.Y = prob_tuple[2]
             self.Y = np.asarray(self.Y).reshape(-1)
         else:
             self.Y = np.array(prob_tuple[2])
             self.Y = np.asarray(self.Y).reshape(-1)
 
-
         self.num = len(self.X)
         self.dimensions = len(self.X[0])
         self.xi_xj = self.gram_matrix(self.X, self.X, self.xkernel)
-        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xSkernel)
+        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xskernel)
         self.yi_yj = self.gram_matrix(self.Y, self.Y, Linear())
 
-    def gram_matrix(self, X1, X2, kern):
+    def gram_matrix(self, x1, x2, kern):
+        """
+        Return matrix comparing x1 to x2 using kern
+
+        Parameters
+        ----------
+        x1 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        x2 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        kern : Kernel
+            Kernel distance measure to use
+
+        Returns
+        -------
+        numpy.ndarray
+            Matrix of kernel distances between each pairing of inputs
+
+        """
         if isinstance(kern, Gaussian):
             if self.sigma == -99:
-                SQD = np.zeros((len(X1), len(X1)))
-                for i in range(len(X1)):
-                    for j in range(len(X1)):
-                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-                self.sigma = np.median(SQD)
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=self.sigma)
-            return K
+                sqd = np.zeros((len(x1), len(x1)))
+                for i in range(len(x1)):
+                    for j in range(len(x1)):
+                        sqd[i, j] = np.linalg.norm(x1[i] - x2[j])
+                self.sigma = np.median(sqd)
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j], sigma=self.sigma)
+            return k
         else:
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j])
-            return K
-
-class svm_test():
-    def __init__(self, test_x, test_y):
-        if(isinstance(test_x, np.ndarray)):
-            self.X = test_x
-        else:
-            self.X = np.array(test_x)
-        if(isinstance(test_y, np.ndarray)):
-            self.Y = test_y
-        else:
-            self.Y = np.array(test_y)
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j])
+            return k
 
 
-class classifier():
-
+class Classifier:
     def __init__(self):
-        self.w = 0
         self.b = 0
         self.alphas = []
 
@@ -157,91 +256,214 @@ class classifier():
         self.support_vectors = []
 
     def predict(self, x):
-        GMx = self.gram_matrix(x, self.xs, self.kern)
-        return np.sign(np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b)
+        gmx = self.gram_matrix(x, self.xs, self.kern)
+        return np.sign(np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), gmx[:, None]), axis=0) + self.b)
 
+    def gram_matrix(self, x1, x2, kern):
+        """
+        Return matrix comparing x1 to x2 using kern
 
-    def gram_matrix(self, X1, X2, kern):
+        Parameters
+        ----------
+        x1 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        x2 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        kern : Kernel
+            Kernel distance measure to use
+
+        Returns
+        -------
+        numpy.ndarray
+            Matrix of kernel distances between each pairing of inputs
+
+        """
         if isinstance(kern, Gaussian):
             if self.sigma == -99:
-                SQD = np.zeros((len(X2), len(X2)))
-                for i in range(len(X2)):
-                    for j in range(len(X2)):
-                        SQD[i,j] = np.linalg.norm(X2[i]-X2[j])
-                self.sigma = np.median(SQD)
-            K = np.zeros(len(X2))
-            for i in range(len(X2)):
-                K[i] = kern(X1, X2[i], sigma=self.sigma)
-            return K
+                sqd = np.zeros((len(x2), len(x2)))
+                for i in range(len(x2)):
+                    for j in range(len(x2)):
+                        sqd[i, j] = np.linalg.norm(x2[i] - x2[j])
+                self.sigma = np.median(sqd)
+            k = np.zeros(len(x2))
+            for i in range(len(x2)):
+                k[i] = kern(x1, x2[i], sigma=self.sigma)
+            return k
         else:
-            K = np.zeros(len(X2))
-            for i in range(len(X2)):
-                K[i] = kern(X1, X2[i])
-            return K
+            k = np.zeros(len(x2))
+            for i in range(len(x2)):
+                k[i] = kern(x1, x2[i])
+            return k
 
-    def f(self, x): # This won't make sense now, but we come back to it later
-        GMx = self.gram_matrix(x, self.xs, self.kern)
-        return np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), GMx[:, None]), axis = 0)+self.b
+    def f(self, x):
+        gmx = self.gram_matrix(x, self.xs, self.kern)
+        return np.sum(np.multiply((np.multiply(self.alphas, self.ys[:, None])), gmx[:, None]), axis=0) + self.b
 
-class svm_u_problem():
-    def __init__(self, X, Xstar, XstarStar, Y, C=1.0, gamma=1.0, sigma=1, delta=1.0, xkernel=Linear(), xSkernel=Linear(), xSSkernel=Linear()):
-        self.C = C
+
+class SvmUProblem:
+    """
+    All information about a problem that can be solved by SVMu
+
+    Attributes
+    ----------
+    C : float
+        The regularization parameter to use for this problem
+    gamma : float
+        Parameter controlling that priority between X and X*
+    sigma : float
+        Parameter controlling that priority between X and X**
+    delta : float
+        Parameter controlling the strictness of `classification' in X**
+    xkernel: Kernel
+        Kernel used in X
+    xskernel: Kernel
+        Kernel used in X*
+    xsskernel: Kernel
+        Kernel used in X**
+    gaussian_sigma: float
+        Standard deviation in distance between datapoints in space where Gaussian kernel is applied
+    X : numpy.array
+        Non-privileged data-points
+    Xstar : numpy.array
+        Privileged data-points
+    XstarStar : numpy.array
+        Privileged data-points
+    Y : numpy.array
+        Class labels
+    num : int
+        Number of data-points
+    dimensions: int
+        Number of features in X
+    xi_xj : numpy.ndarray
+        K(x,x) Matrix of kernel distances between each data-point in X
+    xstari_xstarj : numpy.ndarray
+        K*(x*,x*) Matrix of kernel distances between each data-point in X*
+    xstarstari_xstarstarj : numpy.ndarray
+        K**(x**,x**) Matrix of kernel distances between each data-point in X**
+    yi_yj : numpy.array
+        Array of Yi * Yj
+
+    """
+    def __init__(self, x, xstar, xstarstar, y, c=1.0, gamma=1.0, sigma=1, delta=1.0, xkernel=Linear(),
+                 xskernel=Linear(), xsskernel=Linear()):
+        self.C = c
         self.gamma = gamma
         self.sigma = sigma
         self.delta = delta
         self.xkernel = xkernel
-        self.xSkernel = xSkernel
-        self.xSSkernel = xSSkernel
+        self.xskernel = xskernel
+        self.xsskernel = xsskernel
         self.gaussian_sigma = -99
 
-        if(isinstance(X, np.ndarray)):
-            self.X = X
+        if isinstance(x, np.ndarray):
+            self.X = x
         else:
-            self.X = np.array(X)
-        if(isinstance(Xstar, np.ndarray)):
-            self.Xstar = Xstar
+            self.X = np.array(x)
+        if isinstance(xstar, np.ndarray):
+            self.Xstar = xstar
         else:
-            self.Xstar = np.array(Xstar)
-        if(isinstance(XstarStar, np.ndarray)):
-            self.XstarStar = XstarStar
+            self.Xstar = np.array(xstar)
+        if isinstance(xstarstar, np.ndarray):
+            self.XstarStar = xstarstar
         else:
-            self.XstarStar = np.array(XstarStar)
-        if(isinstance(Y, np.ndarray)):
-            self.Y = Y
+            self.XstarStar = np.array(xstarstar)
+        if isinstance(y, np.ndarray):
+            self.Y = y
             self.Y = np.asarray(self.Y).reshape(-1)
         else:
-            self.Y = np.array(Y)
+            self.Y = np.array(y)
             self.Y = np.asarray(self.Y).reshape(-1)
 
         self.num = len(self.X)
         self.dimensions = len(self.X[0])
         self.xi_xj = self.gram_matrix(self.X, self.X, self.xkernel)
-        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xSkernel)
-        self.xstarstari_xstarstarj = self.gram_matrix(self.XstarStar, self.XstarStar, self.xSSkernel)
+        self.xstari_xstarj = self.gram_matrix(self.Xstar, self.Xstar, self.xskernel)
+        self.xstarstari_xstarstarj = self.gram_matrix(self.XstarStar, self.XstarStar, self.xsskernel)
         self.yi_yj = self.gram_matrix(self.Y, self.Y, Linear())
 
-    def gram_matrix(self, X1, X2, kern):
+    def gram_matrix(self, x1, x2, kern):
+        """
+        Return matrix comparing x1 to x2 using kern
+
+        Parameters
+        ----------
+        x1 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        x2 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        kern : Kernel
+            Kernel distance measure to use
+
+        Returns
+        -------
+        numpy.ndarray
+            Matrix of kernel distances between each pairing of inputs
+
+        """
         if isinstance(kern, Gaussian):
             if self.gaussian_sigma == -99:
-                #print(kern.getName())
-                SQD = np.zeros((len(X1), len(X1)))
-                for i in range(len(X1)):
-                    for j in range(len(X1)):
-                        SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-                self.gaussian_sigma = np.median(SQD)
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=self.gaussian_sigma)
-            return K
+                sqd = np.zeros((len(x1), len(x1)))
+                for i in range(len(x1)):
+                    for j in range(len(x1)):
+                        sqd[i, j] = np.linalg.norm(x1[i] - x2[j])
+                self.gaussian_sigma = np.median(sqd)
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j], sigma=self.gaussian_sigma)
+            return k
         else:
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j])
-            return K
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j])
+            return k
 
-class svm_u_problem_tuple():
+
+class SvmUProblemTuple:
+    """
+    All information about a problem that can be solved by SVMu
+
+    Attributes
+    ----------
+    C : float
+        The regularization parameter to use for this problem
+    gamma : float
+        Parameter controlling that priority between X and X*
+    sigma : float
+        Parameter controlling that priority between X and X**
+    delta : float
+        Parameter controlling the strictness of `classification' in X**
+    xkernel: Kernel
+        Kernel used in X
+    xskernel: Kernel
+        Kernel used in X*
+    xsskernel: Kernel
+        Kernel used in X**
+    gaussian_sigma: float
+        Standard deviation in distance between datapoints in space where Gaussian kernel is applied
+    X : numpy.array
+        Non-privileged data-points
+    Xstar : numpy.array
+        Privileged data-points
+    XstarStar : numpy.array
+        Privileged data-points
+    Y : numpy.array
+        Class labels
+    num : int
+        Number of data-points
+    dimensions: int
+        Number of features in X
+    xi_xj : numpy.ndarray
+        K(x,x) Matrix of kernel distances between each data-point in X
+    xstari_xstarj : numpy.ndarray
+        K*(x*,x*) Matrix of kernel distances between each data-point in X*
+    xstarstari_xstarstarj : numpy.ndarray
+        K**(x**,x**) Matrix of kernel distances between each data-point in X**
+    yi_yj : numpy.array
+        Array of Yi * Yj
+
+    """
     def __init__(self, p):
         self.C = p[5]
         self.gamma = p[7]
@@ -250,20 +472,21 @@ class svm_u_problem_tuple():
         self.xkernel = p[9]
         self.xSkernel = p[10]
         self.xSSkernel = p[11]
+        self.gaussian_sigma = -99
 
-        if(isinstance(p[0], np.ndarray)):
+        if isinstance(p[0], np.ndarray):
             self.X = p[0]
         else:
             self.X = np.array(p[0])
-        if(isinstance(p[1], np.ndarray)):
+        if isinstance(p[1], np.ndarray):
             self.Xstar = p[1]
         else:
             self.Xstar = np.array(p[1])
-        if(isinstance(p[1], np.ndarray)):
+        if isinstance(p[1], np.ndarray):
             self.XstarStar = p[1]
         else:
             self.XstarStar = np.array(p[1])
-        if(isinstance(p[2], np.ndarray)):
+        if isinstance(p[2], np.ndarray):
             self.Y = p[2]
             self.Y = np.asarray(self.Y).reshape(-1)
         else:
@@ -277,24 +500,40 @@ class svm_u_problem_tuple():
         self.xstarstari_xstarstarj = self.gram_matrix(self.XstarStar, self.XstarStar, self.xSSkernel)
         self.yi_yj = self.gram_matrix(self.Y, self.Y, Linear())
 
-    def gram_matrix(self, X1, X2, kern):
+    def gram_matrix(self, x1, x2, kern):
+        """
+        Return matrix comparing x1 to x2 using kern
+
+        Parameters
+        ----------
+        x1 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        x2 : numpy.ndarray
+            Feature arrays representing data-points / class labels
+        kern : Kernel
+            Kernel distance measure to use
+
+        Returns
+        -------
+        numpy.ndarray
+            Matrix of kernel distances between each pairing of inputs
+
+        """
         if isinstance(kern, Gaussian):
-            #print(kern.getName())
-            SQD = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    SQD[i,j] = np.linalg.norm(X1[i]-X2[j])
-            sigma = np.median(SQD)
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j], sigma=sigma)
-            return K
+            if self.gaussian_sigma == -99:
+                sqd = np.zeros((len(x1), len(x1)))
+                for i in range(len(x1)):
+                    for j in range(len(x1)):
+                        sqd[i, j] = np.linalg.norm(x1[i] - x2[j])
+                self.gaussian_sigma = np.median(sqd)
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j], sigma=self.gaussian_sigma)
+            return k
         else:
-            K = np.zeros((len(X1), len(X1)))
-            for i in range(len(X1)):
-                for j in range(len(X1)):
-                    K[i,j] = kern(X1[i], X2[j])
-            return K
-
-
+            k = np.zeros((len(x1), len(x1)))
+            for i in range(len(x1)):
+                for j in range(len(x1)):
+                    k[i, j] = kern(x1[i], x2[j])
+            return k
